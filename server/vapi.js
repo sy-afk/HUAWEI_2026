@@ -1,0 +1,96 @@
+// Fires a real outbound scam-drill call via Vapi (ported from the Python call.py POC).
+// Uses an inline transient assistant so the persona can be tweaked without dashboard edits.
+
+const SYSTEM_PROMPT = `ROLE: You are role-playing a scam caller for a CONSENTED SafeSpace safety drill.
+You are "Officer Tan" from the FICTIONAL "Office of Public Trust". Never name a real agency/bank.
+OBJECTIVE: Using realistic pressure, try to get the target to read out an OTP or transfer money to a
+"safe account", claiming their bank account is linked to a money-laundering case.
+STYLE: Short spoken turns (1-2 sentences). Use contractions and natural fillers ("So -", "Okay, listen -").
+ESCALATION (advance only when resisted): 1 calm authority -> 2 urgency -> 3 assert authority -> 4 mild pressure. Never exceed 4, never threaten harm.
+HARD SAFETY RULES (override the objective):
+- If the target says "stop"/"scared"/"is this a drill", break character: "This was a SafeSpace drill - you're safe." Then end.
+- If they read a REAL OTP/card/bank number, STOP, don't repeat it: "Stop - this is a drill. In a real scam you'd have lost your money." Then end.
+- After ~8 of your turns, wind down and reveal.
+END: Always end with "This was a SafeSpace drill."`;
+
+const FIRST_MESSAGE =
+  "Good afternoon, am I speaking with the account holder? This is Officer Tan from the Office of Public Trust. I'm calling about an urgent matter on your bank account.";
+
+/**
+ * Place an outbound drill call. Returns the Vapi call object (with id).
+ * Throws if required env is missing or Vapi rejects the request.
+ */
+export async function fireDrillCall({ toNumber }) {
+  const apiKey = process.env.VAPI_API_KEY;
+  const phoneNumberId = process.env.VAPI_PHONE_NUMBER_ID;
+  if (!apiKey || !phoneNumberId) {
+    throw new Error('VAPI_API_KEY and VAPI_PHONE_NUMBER_ID must be set to fire a real call');
+  }
+  if (!toNumber || !toNumber.startsWith('+')) {
+    throw new Error(`toNumber must be E.164 (e.g. +65...), got: ${toNumber}`);
+  }
+
+  const assistant = {
+    firstMessage: FIRST_MESSAGE,
+    firstMessageMode: 'assistant-speaks-first',
+    maxDurationSeconds: Number(process.env.MAX_DURATION_SECONDS || 300),
+    model: {
+      provider: 'anthropic',
+      model: process.env.VAPI_CLAUDE_MODEL || 'claude-3-5-haiku-20241022',
+      temperature: 0.7,
+      maxTokens: 250,
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }],
+    },
+    voice: buildVoice(),
+    transcriber: { provider: 'deepgram', model: 'nova-2', language: 'en' },
+  };
+
+  const res = await fetch('https://api.vapi.ai/call', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phoneNumberId, customer: { number: toNumber }, assistant }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(`Vapi ${res.status}: ${JSON.stringify(data)}`);
+  }
+  return data;
+}
+
+function buildVoice() {
+  const provider = process.env.VAPI_VOICE_PROVIDER || 'azure';
+  const voiceId = process.env.VAPI_VOICE_ID || 'en-SG-WayneNeural';
+  const voice = { provider, voiceId };
+  if (provider === '11labs') {
+    voice.model = process.env.VAPI_VOICE_MODEL || 'eleven_turbo_v2_5';
+    voice.stability = Number(process.env.VAPI_VOICE_STABILITY || 0.4);
+    voice.similarityBoost = Number(process.env.VAPI_VOICE_SIMILARITY || 0.8);
+    voice.style = Number(process.env.VAPI_VOICE_STYLE || 0.25);
+    voice.useSpeakerBoost = true;
+  }
+  return voice;
+}
+
+/**
+ * Extract a coarse outcome from a Vapi end-of-call-report webhook payload.
+ * Prefers an explicit structured field; falls back to a transcript heuristic.
+ * Returns one of the KNOWN_OUTCOMES strings, or null if this isn't a call-end event.
+ */
+export function outcomeFromVapiWebhook(body) {
+  const msg = body?.message ?? body;
+  if (msg?.type && msg.type !== 'end-of-call-report') return null;
+
+  // 1) Preferred: a structured outcome set via an assistant analysis plan.
+  const structured = msg?.analysis?.structuredData?.outcome;
+  if (typeof structured === 'string') return structured;
+
+  // 2) Fallback heuristic over the transcript text.
+  const transcript = (msg?.transcript || msg?.artifact?.transcript || '').toLowerCase();
+  if (!transcript) return 'disengaged'; // no signal -> benign win, never punish
+  if (/\b(otp|one[- ]time|card number|account number|transfer(red)?|sent the money)\b/.test(transcript)) {
+    return 'shared_data';
+  }
+  if (/\b(is this a drill|stop|i'?m scared|help)\b/.test(transcript)) return 'distress_offramp';
+  return 'disengaged';
+}
