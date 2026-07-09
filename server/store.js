@@ -35,7 +35,7 @@ export function getLeaderboard() {
   const db = load();
   return Object.values(db.users)
     .sort((a, b) => b.xp - a.xp)
-    .map((u, i) => ({ rank: i + 1, id: u.id, name: u.name, score: u.xp, level: u.level }));
+    .map((u, i) => ({ rank: i + 1, id: u.id, name: u.name, score: u.xp, level: u.level, wins: u.timesSafe }));
 }
 
 /**

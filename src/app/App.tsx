@@ -1,5 +1,25 @@
 import { useState, useEffect, useRef } from "react";
 
+// ─── Backend API helpers ──────────────────────────────────────────────────
+// All fall back gracefully (null / no-op) so the prototype still runs offline
+// with its mock data if the backend isn't up.
+async function apiGet<T>(path: string): Promise<T | null> {
+  try {
+    const r = await fetch(path);
+    return r.ok ? ((await r.json()) as T) : null;
+  } catch {
+    return null;
+  }
+}
+// Persist an in-app *practice* drill result (half XP). Fire-and-forget.
+function reportOutcome(outcome: string) {
+  fetch("/api/drills/practice-result", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ outcome }),
+  }).catch(() => {});
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────
 type Screen =
   | "title"
@@ -2302,6 +2322,15 @@ function LeaderboardScreen() {
 }
 
 function FameBoard() {
+  // Live leaderboard from the backend; falls back to the mock if it's unreachable.
+  const [board, setBoard] = useState(HALL_OF_FAME);
+  useEffect(() => {
+    apiGet<{ rank: number; name: string; score: number; wins: number }[]>("/api/leaderboard").then((rows) => {
+      if (rows && rows.length) {
+        setBoard(rows.map((r) => ({ rank: r.rank, name: r.name, score: r.score, wins: r.wins ?? 0, area: "FAMILY" })));
+      }
+    });
+  }, []);
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       <div className="mx-4 mt-3 px-3 py-2 flex items-center justify-between" style={{ backgroundColor: "#111827", border: "3px solid #ffe66d" }}>
@@ -2318,7 +2347,7 @@ function FameBoard() {
         <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 5, color: "#6b8ba4" }}>LVL 7</div>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" style={{ scrollbarWidth: "none" }}>
-        {HALL_OF_FAME.map((p) => (
+        {board.map((p) => (
           <div key={p.rank} className="flex items-center gap-3 px-3 py-3" style={{ backgroundColor: "#111827", border: `3px solid ${p.rank <= 3 ? ["#ffe66d", "#c0c0c0", "#cd7f32"][p.rank - 1] : "#2a3a5c"}`, boxShadow: p.rank <= 3 ? `3px 3px 0px ${["#ffe66d", "#c0c0c0", "#cd7f32"][p.rank - 1]}` : "none" }}>
             <div className="flex items-center justify-center" style={{ width: 28 }}>
               {p.rank <= 3 ? <IconMedal rank={p.rank} size={20} /> : <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 8, color: "#6b8ba4" }}>#{p.rank}</div>}
@@ -2505,7 +2534,18 @@ export default function App() {
   const startSms = () => { setDrillType("sms"); setSmsOutcome(null); setEmailOutcome(null); setScreen("sms-inbox"); };
   const startEmail = () => { setDrillType("email"); setSmsOutcome(null); setEmailOutcome(null); setScreen("email-inbox"); };
 
-  const handleHangUp = (win: boolean) => setScreen(win ? "result-win" : "result-lose");
+  // On first load, check whether a real surprise-call result is waiting on the
+  // backend and jump straight to its result screen (the surprise-call → game-UI loop).
+  useEffect(() => {
+    apiGet<{ pending: { screen: Screen } | null }>("/api/drills/pending-result").then((data) => {
+      if (data?.pending?.screen) setScreen(data.pending.screen);
+    });
+  }, []);
+
+  const handleHangUp = (win: boolean) => {
+    reportOutcome(win ? "disengaged" : "complied");
+    setScreen(win ? "result-win" : "result-lose");
+  };
 
   return (
     <>
@@ -2543,16 +2583,16 @@ export default function App() {
             )}
             {screen === "sms-thread" && (
               <SMSThreadScreen
-                onReport={() => { setSmsOutcome("reported"); setScreen("result-win"); }}
-                onAskFamily={() => { setSmsOutcome("asked-family"); setScreen("result-win"); }}
+                onReport={() => { setSmsOutcome("reported"); reportOutcome("reported"); setScreen("result-win"); }}
+                onAskFamily={() => { setSmsOutcome("asked-family"); reportOutcome("asked-family"); setScreen("result-win"); }}
                 onTapLink={() => setScreen("sms-browser")}
                 onBack={() => setScreen("sms-inbox")}
               />
             )}
             {screen === "sms-browser" && (
               <SMSBrowserScreen
-                onClose={() => { setSmsOutcome("closed-page"); setScreen("result-win"); }}
-                onSubmit={() => { setSmsOutcome("clicked-link"); setScreen("result-lose"); }}
+                onClose={() => { setSmsOutcome("closed-page"); reportOutcome("closed_page"); setScreen("result-win"); }}
+                onSubmit={() => { setSmsOutcome("clicked-link"); reportOutcome("clicked_link"); setScreen("result-lose"); }}
               />
             )}
 
@@ -2561,8 +2601,8 @@ export default function App() {
             )}
             {screen === "email-detail" && (
               <EmailDetailScreen
-                onReport={() => { setEmailOutcome("reported"); setScreen("result-win"); }}
-                onAskFamily={() => { setEmailOutcome("asked-family"); setScreen("result-win"); }}
+                onReport={() => { setEmailOutcome("reported"); reportOutcome("reported"); setScreen("result-win"); }}
+                onAskFamily={() => { setEmailOutcome("asked-family"); reportOutcome("asked-family"); setScreen("result-win"); }}
                 onClaimReward={() => setScreen("email-browser")}
                 onOpenAttachment={() => setScreen("email-download")}
                 onBack={() => setScreen("email-inbox")}
@@ -2570,14 +2610,14 @@ export default function App() {
             )}
             {screen === "email-browser" && (
               <EmailBrowserScreen
-                onClose={() => { setEmailOutcome("reported"); setScreen("result-win"); }}
-                onSubmit={() => { setEmailOutcome("submitted-details"); setScreen("result-lose"); }}
+                onClose={() => { setEmailOutcome("reported"); reportOutcome("reported"); setScreen("result-win"); }}
+                onSubmit={() => { setEmailOutcome("submitted-details"); reportOutcome("submitted_details"); setScreen("result-lose"); }}
               />
             )}
             {screen === "email-download" && (
               <EmailDownloadScreen
-                onCancel={() => { setEmailOutcome("cancelled-download"); setScreen("result-win"); }}
-                onComplete={() => { setEmailOutcome("opened-attachment"); setScreen("result-lose"); }}
+                onCancel={() => { setEmailOutcome("cancelled-download"); reportOutcome("cancelled_download"); setScreen("result-win"); }}
+                onComplete={() => { setEmailOutcome("opened-attachment"); reportOutcome("opened_attachment"); setScreen("result-lose"); }}
               />
             )}
 
