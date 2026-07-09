@@ -56,5 +56,23 @@ The React app is wired to the backend and falls back to mock data if it's offlin
 - Every drill ending POSTs its outcome (XP persists); the Result screen shows the real XP.
 - On load, `/api/drills/pending-result` routes a real surprise-call result to the result screen.
 
-For live Vapi webhooks you need a public tunnel (e.g. `ngrok http 3000`) set as the Vapi
-server URL; until then use `/api/drills/simulate` to demo the surprise-call loop.
+## Going live with real call outcomes (webhook)
+
+Real drills score themselves from Vapi's end-of-call report. Vapi is external, so it needs a
+public URL to reach your local backend:
+
+```sh
+# 1. start the backend
+npm start
+# 2. in another terminal, expose it (any of these works):
+cloudflared tunnel --url http://localhost:3000      # no account
+# or: npx localtunnel --port 3000
+# or: ngrok http 3000
+# 3. put the https URL it prints into .env, then restart the backend:
+#    PUBLIC_URL=https://xxxx.trycloudflare.com
+```
+
+Now every `POST /api/drills/fire` call passes that webhook URL to Vapi as the assistant's
+`server.url`, so when the call ends Vapi POSTs its report to `/api/webhooks/vapi`, which scores
+the outcome → XP → queues the result the app shows on next open. No tunnel? Everything else still
+works; use `/api/drills/simulate` to demo the surprise-call loop offline.

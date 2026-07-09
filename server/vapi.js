@@ -45,6 +45,12 @@ export async function fireDrillCall({ toNumber }) {
     transcriber: { provider: 'deepgram', model: 'nova-2', language: 'en' },
   };
 
+  // Tell Vapi where to POST the end-of-call report (so real outcomes flow back into XP).
+  // Set PUBLIC_URL to your tunnel base, e.g. https://xxxx.trycloudflare.com
+  if (process.env.PUBLIC_URL) {
+    assistant.server = { url: `${process.env.PUBLIC_URL.replace(/\/+$/, '')}/api/webhooks/vapi` };
+  }
+
   const res = await fetch('https://api.vapi.ai/call', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
