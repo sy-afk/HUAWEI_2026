@@ -42,6 +42,12 @@ export function getLeaderboard() {
  * Apply a finished drill's outcome to a user: award XP, adjust streak/stats,
  * and (for scored real calls) queue a pending result the app shows on next open.
  */
+// All family members, shaped for the React FamilyHomeScreen (dollhouse rooms).
+export function getFamily() {
+  const db = load();
+  return Object.values(db.users);
+}
+
 export function applyOutcome({ userId, outcome, channel = 'call', practice = false }) {
   const db = load();
   const user = db.users[userId];
@@ -57,10 +63,13 @@ export function applyOutcome({ userId, outcome, channel = 'call', practice = fal
   if (r.streak === 'inc') {
     user.streak += 1;
     user.timesSafe += 1;
+    user.safeThisWeek = true;
   } else if (r.streak === 'reset') {
     user.streak = 0;
     user.timesScammed += 1;
+    user.safeThisWeek = false;
   }
+  if (r.result === 'WON' || r.result === 'LOST') user.recentDrillResult = r.result;
 
   const record = {
     id: `drill_${Date.now()}`,

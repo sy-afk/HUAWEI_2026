@@ -3,7 +3,7 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { getUser, getLeaderboard, applyOutcome, takePendingResult, recordDrillFired } from './store.js';
+import { getUser, getFamily, getLeaderboard, applyOutcome, takePendingResult, recordDrillFired } from './store.js';
 import { fireDrillCall, outcomeFromVapiWebhook } from './vapi.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -21,6 +21,8 @@ app.get('/api/me', (req, res) => {
 });
 
 app.get('/api/leaderboard', (_req, res) => res.json(getLeaderboard()));
+
+app.get('/api/family', (_req, res) => res.json(getFamily()));
 
 // On app open: is there a real-drill result waiting? (drives routing to result screen)
 app.get('/api/drills/pending-result', (req, res) => {

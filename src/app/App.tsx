@@ -11,13 +11,21 @@ async function apiGet<T>(path: string): Promise<T | null> {
     return null;
   }
 }
-// Persist an in-app *practice* drill result (half XP). Fire-and-forget.
-function reportOutcome(outcome: string) {
-  fetch("/api/drills/practice-result", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ outcome }),
-  }).catch(() => {});
+// Persist an in-app *practice* drill result (half XP). Returns the XP the backend awarded
+// (or null if it's unreachable), so the result screen can show the real number.
+async function reportOutcome(outcome: string): Promise<number | null> {
+  try {
+    const r = await fetch("/api/drills/practice-result", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ outcome }),
+    });
+    if (!r.ok) return null;
+    const data = await r.json();
+    return data?.record?.xpGained ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -1371,6 +1379,11 @@ function MemberProfileOverlay({
 
 function FamilyHomeScreen({ onDrillSelect }: { onDrillSelect: () => void }) {
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
+  // Live family data from the backend; falls back to mock if unreachable.
+  const [family, setFamily] = useState<FamilyMember[]>(FAMILY_MEMBERS);
+  useEffect(() => {
+    apiGet<FamilyMember[]>("/api/family").then((rows) => { if (rows && rows.length) setFamily(rows); });
+  }, []);
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
       <div style={{ padding: "0 16px", minHeight: 52, backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
@@ -1384,7 +1397,7 @@ function FamilyHomeScreen({ onDrillSelect }: { onDrillSelect: () => void }) {
         <div style={{ position: "relative" }}>
           <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 8, backgroundColor: "#2a3a5c", backgroundImage: "repeating-linear-gradient(0deg,#1a2a3c,#1a2a3c 4px,#2a3a5c 4px,#2a3a5c 8px)" }} />
           <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 8, backgroundColor: "#2a3a5c", backgroundImage: "repeating-linear-gradient(0deg,#1a2a3c,#1a2a3c 4px,#2a3a5c 4px,#2a3a5c 8px)" }} />
-          {FAMILY_MEMBERS.map((member) => (
+          {family.map((member) => (
             <DollhouseRoom key={member.id} member={member} onTap={setSelectedMember} />
           ))}
         </div>
@@ -2229,7 +2242,7 @@ function getResultContent(win: boolean, drillType: DrillType, smsOutcome: SmsOut
   return { header: "DETAILS STOLEN!", xp: 50, feedback: "You submitted details on a fake login page. Scammers use official-looking forms to steal passwords, IDs, and OTPs.", flags: EMAIL_FLAGS };
 }
 
-function ResultScreen({ win, drillType, smsOutcome, emailOutcome, onPlayAgain, onGoHome }: { win: boolean; drillType: DrillType; smsOutcome: SmsOutcome | null; emailOutcome: EmailOutcome | null; onPlayAgain: () => void; onGoHome: () => void }) {
+function ResultScreen({ win, drillType, smsOutcome, emailOutcome, onPlayAgain, onGoHome, xpOverride }: { win: boolean; drillType: DrillType; smsOutcome: SmsOutcome | null; emailOutcome: EmailOutcome | null; onPlayAgain: () => void; onGoHome: () => void; xpOverride?: number | null }) {
   const [showDetails, setShowDetails] = useState(false);
   useEffect(() => { const t = setTimeout(() => setShowDetails(true), 700); return () => clearTimeout(t); }, []);
 
@@ -2267,7 +2280,7 @@ function ResultScreen({ win, drillType, smsOutcome, emailOutcome, onPlayAgain, o
               </div>
               <div className="flex justify-between items-center mb-2">
                 <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: "#6b8ba4" }}>XP GAINED</div>
-                <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 10, color: "#ffe66d" }}>+{xp}</div>
+                <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 10, color: "#ffe66d" }}>+{xpOverride ?? xp}</div>
               </div>
               <div className="flex justify-between items-center mb-3">
                 <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: "#6b8ba4" }}>STREAK</div>
@@ -2521,6 +2534,7 @@ export default function App() {
   const [drillType, setDrillType] = useState<DrillType>("call");
   const [smsOutcome, setSmsOutcome] = useState<SmsOutcome | null>(null);
   const [emailOutcome, setEmailOutcome] = useState<EmailOutcome | null>(null);
+  const [resultXp, setResultXp] = useState<number | null>(null);
 
   const DRILL_SCREENS: Screen[] = ["drill-select", "incoming", "call", "sms-inbox", "sms-thread", "sms-browser", "email-inbox", "email-detail", "email-browser", "email-download", "result-win", "result-lose"];
   const isDrillFlow = DRILL_SCREENS.includes(screen);
@@ -2530,20 +2544,28 @@ export default function App() {
   const goDrillSelect = () => setScreen("drill-select");
   const handleTab = (tab: Tab) => { setActiveTab(tab); setScreen(tab); };
 
-  const startCall = () => { setDrillType("call"); setSmsOutcome(null); setEmailOutcome(null); setScreen("incoming"); };
-  const startSms = () => { setDrillType("sms"); setSmsOutcome(null); setEmailOutcome(null); setScreen("sms-inbox"); };
-  const startEmail = () => { setDrillType("email"); setSmsOutcome(null); setEmailOutcome(null); setScreen("email-inbox"); };
+  const startCall = () => { setDrillType("call"); setSmsOutcome(null); setEmailOutcome(null); setResultXp(null); setScreen("incoming"); };
+  const startSms = () => { setDrillType("sms"); setSmsOutcome(null); setEmailOutcome(null); setResultXp(null); setScreen("sms-inbox"); };
+  const startEmail = () => { setDrillType("email"); setSmsOutcome(null); setEmailOutcome(null); setResultXp(null); setScreen("email-inbox"); };
 
   // On first load, check whether a real surprise-call result is waiting on the
   // backend and jump straight to its result screen (the surprise-call → game-UI loop).
   useEffect(() => {
-    apiGet<{ pending: { screen: Screen } | null }>("/api/drills/pending-result").then((data) => {
-      if (data?.pending?.screen) setScreen(data.pending.screen);
+    apiGet<{ pending: { screen: Screen; xpGained: number } | null }>("/api/drills/pending-result").then((data) => {
+      if (data?.pending?.screen) {
+        setResultXp(data.pending.xpGained);
+        setScreen(data.pending.screen);
+      }
     });
   }, []);
 
+  // Persist a practice outcome, then show its real awarded XP on the result screen.
+  const report = (outcome: string) => {
+    reportOutcome(outcome).then((xp) => { if (xp != null) setResultXp(xp); });
+  };
+
   const handleHangUp = (win: boolean) => {
-    reportOutcome(win ? "disengaged" : "complied");
+    report(win ? "disengaged" : "complied");
     setScreen(win ? "result-win" : "result-lose");
   };
 
@@ -2583,16 +2605,16 @@ export default function App() {
             )}
             {screen === "sms-thread" && (
               <SMSThreadScreen
-                onReport={() => { setSmsOutcome("reported"); reportOutcome("reported"); setScreen("result-win"); }}
-                onAskFamily={() => { setSmsOutcome("asked-family"); reportOutcome("asked-family"); setScreen("result-win"); }}
+                onReport={() => { setSmsOutcome("reported"); report("reported"); setScreen("result-win"); }}
+                onAskFamily={() => { setSmsOutcome("asked-family"); report("asked-family"); setScreen("result-win"); }}
                 onTapLink={() => setScreen("sms-browser")}
                 onBack={() => setScreen("sms-inbox")}
               />
             )}
             {screen === "sms-browser" && (
               <SMSBrowserScreen
-                onClose={() => { setSmsOutcome("closed-page"); reportOutcome("closed_page"); setScreen("result-win"); }}
-                onSubmit={() => { setSmsOutcome("clicked-link"); reportOutcome("clicked_link"); setScreen("result-lose"); }}
+                onClose={() => { setSmsOutcome("closed-page"); report("closed_page"); setScreen("result-win"); }}
+                onSubmit={() => { setSmsOutcome("clicked-link"); report("clicked_link"); setScreen("result-lose"); }}
               />
             )}
 
@@ -2601,8 +2623,8 @@ export default function App() {
             )}
             {screen === "email-detail" && (
               <EmailDetailScreen
-                onReport={() => { setEmailOutcome("reported"); reportOutcome("reported"); setScreen("result-win"); }}
-                onAskFamily={() => { setEmailOutcome("asked-family"); reportOutcome("asked-family"); setScreen("result-win"); }}
+                onReport={() => { setEmailOutcome("reported"); report("reported"); setScreen("result-win"); }}
+                onAskFamily={() => { setEmailOutcome("asked-family"); report("asked-family"); setScreen("result-win"); }}
                 onClaimReward={() => setScreen("email-browser")}
                 onOpenAttachment={() => setScreen("email-download")}
                 onBack={() => setScreen("email-inbox")}
@@ -2610,14 +2632,14 @@ export default function App() {
             )}
             {screen === "email-browser" && (
               <EmailBrowserScreen
-                onClose={() => { setEmailOutcome("reported"); reportOutcome("reported"); setScreen("result-win"); }}
-                onSubmit={() => { setEmailOutcome("submitted-details"); reportOutcome("submitted_details"); setScreen("result-lose"); }}
+                onClose={() => { setEmailOutcome("reported"); report("reported"); setScreen("result-win"); }}
+                onSubmit={() => { setEmailOutcome("submitted-details"); report("submitted_details"); setScreen("result-lose"); }}
               />
             )}
             {screen === "email-download" && (
               <EmailDownloadScreen
-                onCancel={() => { setEmailOutcome("cancelled-download"); reportOutcome("cancelled_download"); setScreen("result-win"); }}
-                onComplete={() => { setEmailOutcome("opened-attachment"); reportOutcome("opened_attachment"); setScreen("result-lose"); }}
+                onCancel={() => { setEmailOutcome("cancelled-download"); report("cancelled_download"); setScreen("result-win"); }}
+                onComplete={() => { setEmailOutcome("opened-attachment"); report("opened_attachment"); setScreen("result-lose"); }}
               />
             )}
 
@@ -2629,6 +2651,7 @@ export default function App() {
                 emailOutcome={emailOutcome}
                 onPlayAgain={goDrillSelect}
                 onGoHome={goHome}
+                xpOverride={resultXp}
               />
             )}
           </div>
