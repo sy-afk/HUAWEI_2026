@@ -3,8 +3,11 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { getUser, getFamily, getLeaderboard, applyOutcome, takePendingResult, recordDrillFired } from './store.js';
+import { getUser, getFamily, getLeaderboard, applyOutcome, takePendingResult, recordDrillFired, registerVerifiedUser } from './store.js';
 import { fireDrillCall, outcomeFromVapiWebhook } from './vapi.js';
+import { startVerification, checkVerification, rateLimited } from './verify.js';
+
+const E164 = /^\+[1-9]\d{6,14}$/;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, '..', 'dist');
@@ -38,6 +41,34 @@ app.post('/api/drills/practice-result', (req, res) => {
     res.json({ record, user: u });
   } catch (e) {
     res.status(400).json({ error: String(e.message || e) });
+  }
+});
+
+// --- Phone registration: verify ownership + consent via OTP (Twilio Verify / dev bypass). ---
+app.post('/api/verify/start', async (req, res) => {
+  const phone = (req.body?.phone || '').trim();
+  if (!E164.test(phone)) return res.status(400).json({ error: 'phone must be E.164, e.g. +6591234567' });
+  if (rateLimited(phone)) return res.status(429).json({ error: 'too many attempts, wait a bit' });
+  try {
+    const out = await startVerification(phone);
+    res.json({ ok: true, ...out }); // out.dev + out.devCode in dev mode
+  } catch (e) {
+    res.status(502).json({ error: String(e.message || e) });
+  }
+});
+
+app.post('/api/verify/check', async (req, res) => {
+  const phone = (req.body?.phone || '').trim();
+  const code = (req.body?.code || '').trim();
+  const name = req.body?.name;
+  if (!E164.test(phone) || !code) return res.status(400).json({ error: 'phone and code required' });
+  try {
+    const approved = await checkVerification(phone, code);
+    if (!approved) return res.status(401).json({ ok: false, error: 'incorrect or expired code' });
+    const user = registerVerifiedUser({ phone, name });
+    res.json({ ok: true, userId: user.id, name: user.name });
+  } catch (e) {
+    res.status(502).json({ error: String(e.message || e) });
   }
 });
 

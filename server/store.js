@@ -115,3 +115,28 @@ export function recordDrillFired({ userId, channel = 'call', callId = null }) {
   });
   save(db);
 }
+
+// Upsert a phone-verified user and log a 'granted' consent event (the audit trail).
+// Called by /api/verify/check after OTP succeeds. Guests are keyed by their number.
+export function registerVerifiedUser({ phone, name }) {
+  const db = load();
+  const id = phone;
+  if (!db.users[id]) {
+    db.users[id] = {
+      id,
+      name: (name || 'GUEST').toString().toUpperCase().slice(0, 10) || 'GUEST',
+      role: 'ROOKIE',
+      phone,
+      consentToDrills: true,
+      level: 1, xp: 0, xpMax: 500, streak: 0, timesSafe: 0, timesScammed: 0,
+      primaryColor: '#4ecdc4', badgeCount: 0, badgeTotal: 9,
+      roomName: 'GUEST ROOM', roomBg: '#081420', safeThisWeek: true, recentDrillResult: null,
+    };
+  }
+  db.users[id].phone = phone;
+  db.users[id].consentToDrills = true;
+  db.consentEvents = db.consentEvents || [];
+  db.consentEvents.push({ userId: id, type: 'granted', channel: 'otp', at: new Date().toISOString() });
+  save(db);
+  return db.users[id];
+}

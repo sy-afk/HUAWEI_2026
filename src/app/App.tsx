@@ -39,6 +39,7 @@ type Screen =
   | "result-lose"
   | "leaderboard"
   | "profile"
+  | "register"
   | "sms-inbox"
   | "sms-thread"
   | "sms-browser"
@@ -1377,7 +1378,7 @@ function MemberProfileOverlay({
   );
 }
 
-function FamilyHomeScreen({ onDrillSelect }: { onDrillSelect: () => void }) {
+function FamilyHomeScreen({ onDrillSelect, onRegister }: { onDrillSelect: () => void; onRegister: () => void }) {
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
   // Live family data from the backend; falls back to mock if unreachable.
   const [family, setFamily] = useState<FamilyMember[]>(FAMILY_MEMBERS);
@@ -1406,6 +1407,8 @@ function FamilyHomeScreen({ onDrillSelect }: { onDrillSelect: () => void }) {
         </div>
         <div style={{ padding: "16px 16px 8px", backgroundColor: "#0a0e1a" }}>
           <PixelBtn onClick={onDrillSelect} color="#00ff88" size="lg" full>[ START FAMILY DRILL ]</PixelBtn>
+          <div style={{ height: 10 }} />
+          <PixelBtn onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="md" full>[ OPT IN TO REAL CALL DRILLS ]</PixelBtn>
         </div>
         <div style={{ padding: "0 16px 24px", backgroundColor: "#0a0e1a", fontFamily: "'Press Start 2P',monospace", fontSize: 5, color: "#6b8ba4", textAlign: "center" }}>
           Pick a scam type for the whole family.
@@ -2439,6 +2442,83 @@ const ACHIEVEMENTS = [
   { id: 9, name: "ROMANCE DEF", unlocked: false, color: "#ff2d55" },
 ];
 
+// ─────────────────────────────────────────────────────────────────────────
+// SCREEN: REGISTER (phone-ownership + consent via OTP; dev bypass code offline)
+// ─────────────────────────────────────────────────────────────────────────
+function RegisterScreen({ onDone, onBack }: { onDone: () => void; onBack: () => void }) {
+  const [step, setStep] = useState<"phone" | "code">("phone");
+  const [phone, setPhone] = useState("+65");
+  const [name, setName] = useState("");
+  const [code, setCode] = useState("");
+  const [msg, setMsg] = useState("");
+  const [devCode, setDevCode] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", padding: "12px", backgroundColor: "#0a0e1a",
+    border: "3px solid #2a3a5c", color: "#e8f4f8",
+    fontFamily: "'Share Tech Mono', monospace", fontSize: 16, outline: "none",
+  };
+  const label = (t: string) => (
+    <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: "#6b8ba4", marginBottom: 8 }}>{t}</div>
+  );
+
+  async function sendCode() {
+    setBusy(true); setMsg("");
+    try {
+      const r = await fetch("/api/verify/start", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone }) });
+      const d = await r.json();
+      if (!r.ok) { setMsg(d.error || "Could not send code"); setBusy(false); return; }
+      setDevCode(d.devCode ?? null);
+      setMsg(d.dev ? "DEV MODE — enter the code below" : "Code sent by SMS");
+      setStep("code");
+    } catch { setMsg("Network error"); }
+    setBusy(false);
+  }
+  async function verify() {
+    setBusy(true); setMsg("");
+    try {
+      const r = await fetch("/api/verify/check", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone, code, name }) });
+      const d = await r.json();
+      if (!r.ok || !d.ok) { setMsg(d.error || "Incorrect code"); setBusy(false); return; }
+      setMsg("VERIFIED! You're registered."); setTimeout(onDone, 1000);
+    } catch { setMsg("Network error"); }
+    setBusy(false);
+  }
+
+  return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ padding: "0 16px", minHeight: 52, backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+        <div style={{ fontFamily: "'Press Start 2P',monospace", fontSize: 10, color: "#4ecdc4" }}>REGISTER</div>
+        <div style={{ fontFamily: "'Press Start 2P',monospace", fontSize: 6, color: "#2a3a5c" }}>OPT IN</div>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ fontFamily: "'VT323', monospace", fontSize: 18, color: "#6b8ba4", lineHeight: 1.3 }}>
+          Verify your phone to opt in to real practice scam calls. We only ever call this number, and you can stop anytime.
+        </div>
+        <PixelPanel accent="#4ecdc4" className="w-full">
+          {step === "phone" ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>{label("YOUR NAME (OPTIONAL)")}<input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="JUDGE" /></div>
+              <div>{label("PHONE NUMBER")}<input style={inputStyle} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+6591234567" inputMode="tel" /></div>
+              <PixelBtn onClick={sendCode} color="#4ecdc4" size="lg" full disabled={busy}>{busy ? "SENDING..." : "[ SEND CODE ]"}</PixelBtn>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>{label(`CODE SENT TO ${phone}`)}<input style={{ ...inputStyle, letterSpacing: 8, textAlign: "center", fontSize: 22 }} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000000" inputMode="numeric" /></div>
+              {devCode && <div style={{ fontFamily: "'Press Start 2P',monospace", fontSize: 7, color: "#ffe66d", textAlign: "center" }}>DEV CODE: {devCode}</div>}
+              <PixelBtn onClick={verify} color="#00ff88" size="lg" full disabled={busy || code.length < 6}>{busy ? "CHECKING..." : "[ VERIFY ]"}</PixelBtn>
+              <PixelBtn onClick={() => { setStep("phone"); setMsg(""); }} color="#1a2340" textColor="#6b8ba4" size="sm" full>CHANGE NUMBER</PixelBtn>
+            </div>
+          )}
+          {msg && <div style={{ marginTop: 12, fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: msg.includes("VERIFIED") ? "#00ff88" : "#ff6b35", textAlign: "center" }}>{msg}</div>}
+        </PixelPanel>
+        <PixelBtn onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="md" full>BACK</PixelBtn>
+      </div>
+    </div>
+  );
+}
+
 function ProfileScreen() {
   return (
     <div className="flex flex-col h-full">
@@ -2584,9 +2664,10 @@ export default function App() {
         <div className="flex flex-col flex-1 overflow-hidden">
           <div className="flex-1 overflow-hidden">
             {screen === "title" && <TitleScreen onNext={goHome} />}
-            {screen === "home" && <FamilyHomeScreen onDrillSelect={goDrillSelect} />}
+            {screen === "home" && <FamilyHomeScreen onDrillSelect={goDrillSelect} onRegister={() => setScreen("register")} />}
             {screen === "leaderboard" && <LeaderboardScreen />}
             {screen === "profile" && <ProfileScreen />}
+            {screen === "register" && <RegisterScreen onDone={goHome} onBack={goHome} />}
 
             {screen === "drill-select" && (
               <DrillSelectScreen onCall={startCall} onSms={startSms} onEmail={startEmail} onBack={goHome} />
