@@ -728,24 +728,41 @@ async def send_trending_alert(context: ContextTypes.DEFAULT_TYPE):
 # ---------------------------------------------------------------------------
 
 
+WELCOME_TEXT = (
+    "👋 Welcome to SafeSpace Drill Mode!\n\n"
+    "I'll send you realistic (but harmless) messages and posters — some are "
+    "scams, some are perfectly genuine. Your job: tell them apart. Nothing "
+    "here is real, and I never ask for real personal info. Use the commands "
+    "below whenever you want to practice.\n\n"
+    "Commands:\n"
+    "/drill - get a random drill right now\n"
+    "/simulate - live scam role-play (I play the scammer)\n"
+    "/trending - this week's real trending scams\n"
+    "/stats - see your accuracy and streak\n"
+    "/leaderboard - see who's sharpest\n"
+    "/help - how it works"
+)
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     if chat_id not in known_chats:
         known_chats.add(chat_id)
         save_known_chats()
-    await update.message.reply_text(
-        "👋 Welcome to SafeSpace Drill Mode!\n\n"
-        "I'll send you realistic (but harmless) messages and posters — some are "
-        "scams, some are perfectly genuine. Your job: tell them apart. Nothing "
-        "here is real, and I never ask for real personal info. You're now signed "
-        "up to receive drills automatically.\n\n"
-        "Commands:\n"
-        "/drill - get a random drill right now\n"
-        "/trending - this week's real trending scams + a drill\n"
-        "/stats - see your accuracy and streak\n"
-        "/leaderboard - see who's sharpest\n"
-        "/help - how it works"
-    )
+    await update.message.reply_text(WELCOME_TEXT)
+
+
+async def send_welcome_on_startup(context: ContextTypes.DEFAULT_TYPE):
+    """Fired once shortly after the bot boots — sends the welcome message to
+    everyone who has started the bot before (Telegram won't let a bot message
+    anyone who hasn't opened a chat with it first)."""
+    for chat_id in list(known_chats):
+        try:
+            await context.bot.send_message(chat_id=chat_id, text=WELCOME_TEXT)
+        except Exception:
+            log.warning("Could not send welcome to %s, dropping", chat_id, exc_info=True)
+            known_chats.discard(chat_id)
+            save_known_chats()
 
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -967,24 +984,23 @@ def main():
     app.add_handler(CommandHandler("leaderboard", leaderboard))
     app.add_handler(CommandHandler("trending", trending_cmd))
     app.add_handler(CallbackQueryHandler(button))
+
+    # Live LLM-powered scam simulation (/simulate, /end). Optional — only active
+    # if a REKA_API_KEY (or OpenAI key) is set. Registered in its own module.
+    try:
+        import scam_sim
+
+        scam_sim.register(app)
+    except Exception:
+        log.warning("Could not load scam simulation module", exc_info=True)
+
     app.add_error_handler(on_error)
 
-    # Proactively send a drill to everyone who has /start'd the bot, on a
-    # repeating timer. Swap for app.job_queue.run_daily(send_scheduled_drill,
-    # time=time(hour=9, minute=0)) if you want a fixed daily time instead.
-    app.job_queue.run_repeating(
-        send_scheduled_drill,
-        interval=DRILL_INTERVAL_SECONDS,
-        first=DRILL_FIRST_DELAY,
-    )
-
-    # Weekly "trending scams" warning pulled live from scamalert.sg, followed
-    # by a drill replicating the top trending scam.
-    app.job_queue.run_repeating(
-        send_trending_alert,
-        interval=TRENDING_INTERVAL_SECONDS,
-        first=TRENDING_FIRST_DELAY,
-    )
+    # On startup, send the welcome message once to everyone who has started the
+    # bot before. Otherwise the bot is command-driven — nothing else is auto-
+    # pushed. (To re-enable automatic drills or a weekly trending broadcast, add
+    # app.job_queue.run_repeating(...) for send_scheduled_drill / send_trending_alert.)
+    app.job_queue.run_once(send_welcome_on_startup, when=3)
 
     fed = list_user_images()
     if fed:
