@@ -3,3 +3,5 @@ node_modules/
 dist/
 .dist/
 server/data.json
+email-webapp/node_modules
+email-webapp/.next
