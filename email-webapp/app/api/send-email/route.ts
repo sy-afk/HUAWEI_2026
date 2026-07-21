@@ -3,12 +3,57 @@ import OpenAI from "openai";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+/**
+ * CONSENT GATE — this route sends a real AI-generated phishing email.
+ *
+ * Without a gate it is an open phishing relay: anyone who finds the deployed URL can
+ * make us send phishing to any address on the internet, from our own sending identity,
+ * to people who never consented. That is the exact harm SafeSpace's consent model exists
+ * to prevent (and it gets the sending account suspended).
+ *
+ * So: we only ever email addresses an operator has explicitly opted in via
+ * DRILL_EMAIL_ALLOWLIST (comma/whitespace separated). FAILS CLOSED — an empty or unset
+ * allowlist sends to nobody, so a misconfigured deploy can never become a relay.
+ */
+function allowedRecipients(): Set<string> {
+  return new Set(
+    (process.env.DRILL_EMAIL_ALLOWLIST ?? "")
+      .split(/[,\s]+/)
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
+// Deliberately stricter than `includes("@")`.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export async function POST(req: NextRequest) {
   try {
     const { email } = await req.json();
 
-    if (!email || typeof email !== "string" || !email.includes("@")) {
+    if (!email || typeof email !== "string" || !EMAIL_RE.test(email.trim())) {
       return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
+    }
+
+    const allowlist = allowedRecipients();
+    if (allowlist.size === 0) {
+      console.error("send-email refused: DRILL_EMAIL_ALLOWLIST is empty (fail-closed)");
+      return NextResponse.json(
+        { error: "Drill emails are not configured for this environment." },
+        { status: 503 },
+      );
+    }
+    if (!allowlist.has(email.trim().toLowerCase())) {
+      // Don't confirm whether the address exists elsewhere — just refuse.
+      return NextResponse.json(
+        { error: "This address has not opted in to receive drill emails." },
+        { status: 403 },
+      );
+    }
+
+    if (!process.env.GOOGLE_SCRIPT_URL) {
+      console.error("send-email refused: GOOGLE_SCRIPT_URL is not set");
+      return NextResponse.json({ error: "Email sending is not configured." }, { status: 503 });
     }
 
     // 1. Generate the email content with OpenAI
