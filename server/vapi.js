@@ -110,9 +110,18 @@ export function outcomeFromVapiWebhook(body) {
   const structured = msg?.analysis?.structuredData?.outcome;
   if (typeof structured === 'string') return structured;
 
-  // 2) Fallback heuristic over the transcript text.
-  const transcript = (msg?.transcript || msg?.artifact?.transcript || '').toLowerCase();
-  if (!transcript) return 'disengaged'; // no signal -> benign win, never punish
+  // 2) Fallback heuristic — over the TARGET'S OWN WORDS ONLY.
+  // Scoring the whole transcript was wrong: the assistant always says "OTP" (that IS its
+  // objective) and its scripted reveal opens with "Stop right there" — so every drill
+  // scored as shared_data / distress_offramp no matter how well the person actually did.
+  const raw = msg?.transcript || msg?.artifact?.transcript || '';
+  const lines = raw.split('\n');
+  const labelled = lines.some((l) => /^\s*(ai|assistant|bot|user|customer)\s*:/i.test(l));
+  const transcript = (
+    labelled ? lines.filter((l) => /^\s*(user|customer)\s*:/i.test(l)).join(' ') : raw
+  ).toLowerCase();
+  // No signal from the target -> benign win, never punish.
+  if (!transcript.trim()) return 'disengaged';
   if (/\b(otp|one[- ]time|card number|account number|transfer(red)?|sent the money)\b/.test(transcript)) {
     return 'shared_data';
   }
