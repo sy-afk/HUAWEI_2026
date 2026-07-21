@@ -62,6 +62,7 @@ type Screen =
   | "payday"
   | "notifications"
   | "notification-detail"
+  | "realistic-phone-intro"
   | "telegram-intro"
   | "realistic-email-intro";
 
@@ -1752,11 +1753,12 @@ function TitleScreen({ onNext }: { onNext: () => void }) {
 // SCREEN: DRILL SELECT 
 // ─────────────────────────────────────────────────────────────────────────
 function DrillSelectScreen({
-  onCall, onSms, onEmail, onTelegram, onRealisticEmail, onBack,
+  onCall, onSms, onEmail, onRealisticPhone, onTelegram, onRealisticEmail, onBack,
 }: {
   onCall: () => void;
   onSms: () => void;
   onEmail: () => void;
+  onRealisticPhone: () => void;
   onTelegram: () => void;
   onRealisticEmail: () => void;
   onBack: () => void;
@@ -1852,6 +1854,26 @@ function DrillSelectScreen({
         </div>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#6b8ba4", textAlign: "center", marginTop: -4, lineHeight: 1.4 }}>
           External training. Backend integration required.
+        </div>
+
+        <div style={{ backgroundColor: "#111827", border: "4px solid #00ff88", boxShadow: "4px 4px 0 #00ff88", padding: "20px 16px" }}>
+          <div className="flex items-center gap-3 mb-3">
+            <div style={{ filter: "drop-shadow(0 0 6px rgba(0,255,136,0.8))" }}>
+              <IconPhone size={28} color="#00ff88" />
+            </div>
+            <div>
+              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 9, color: "#00ff88" }}>REAL PHONE CALL</div>
+              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 5, color: "#2a3a5c", marginTop: 3 }}>SENT TO YOUR PHONE</div>
+            </div>
+          </div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", marginBottom: 14, lineHeight: 1.5 }}>
+            Receive a simulated scam call on your registered phone number.
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <IconCoin size={10} color="#6b8ba4" />
+            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 5, color: "#6b8ba4" }}>COINS: PENDING BACKEND</div>
+          </div>
+          <PixelBtn onClick={onRealisticPhone} color="#00ff88" textColor="#0a0e1a" size="md" full>SETUP CALL DRILL</PixelBtn>
         </div>
 
         <div style={{ backgroundColor: "#111827", border: "4px solid #00d4ff", boxShadow: "4px 4px 0 #00d4ff", padding: "20px 16px" }}>
@@ -1959,6 +1981,85 @@ function TelegramDrillIntroScreen({ onOpen, onBack }: { onOpen: () => void; onBa
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <PixelBtn onClick={onOpen} color="#00d4ff" textColor="#0a0e1a" size="lg" full>[ OPEN TELEGRAM ]</PixelBtn>
+          <PixelBtn onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>BACK TO DRILLS</PixelBtn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// SCREEN: REALISTIC PHONE DRILL INTRO — explains flow, disabled until backend
+// ─────────────────────────────────────────────────────────────────────────
+function RealisticPhoneDrillIntroScreen({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="flex flex-col h-full">
+      <SubPageHeader title="REAL PHONE DRILL" titleColor="#00ff88" onBack={onBack} />
+
+      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", padding: "20px 16px" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, marginBottom: 20 }}>
+          <div style={{ filter: "drop-shadow(0 0 12px rgba(0,255,136,0.8))" }}>
+            <IconPhone size={64} color="#00ff88" />
+          </div>
+          <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 12, color: "#00ff88", textAlign: "center", textShadow: "3px 3px 0 #003a1f" }}>
+            LIVE CALL DRILL
+          </div>
+          <div style={{ fontFamily: "'VT323', monospace", fontSize: 18, color: "#4ecdc4", textAlign: "center", lineHeight: 1.4 }}>
+            Receive a simulated scam call on your real phone.
+          </div>
+        </div>
+
+        <div style={{ backgroundColor: "#111827", border: "3px solid #00ff88", boxShadow: "3px 3px 0 #00ff88", padding: "14px 16px", marginBottom: 14 }}>
+          <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: "#00ff88", marginBottom: 10 }}>HOW IT WORKS</div>
+          {[
+            "We call your registered phone number.",
+            "Answer the call as you normally would.",
+            "Decide whether to engage, verify, or hang up.",
+            "Return to the app to see your result.",
+          ].map((line, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
+              <div style={{ width: 16, height: 16, backgroundColor: "#00ff88", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: "#0a0e1a" }}>{i + 1}</span>
+              </div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.6, flex: 1 }}>{line}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35", padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <IconWarning size={14} color="#ff6b35" />
+          <div>
+            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: "#ff6b35", marginBottom: 4 }}>TRAINING CALL</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35", lineHeight: 1.5 }}>
+              This is a simulated security drill. We will never ask for real passwords, OTPs, card details, transfers, or payments.
+            </div>
+          </div>
+        </div>
+
+        <div style={{ backgroundColor: "rgba(107,139,164,0.08)", border: "3px solid #6b8ba4", padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <IconLock size={14} color="#6b8ba4" />
+          <div>
+            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: "#6b8ba4", marginBottom: 4 }}>BACKEND NOT CONFIGURED</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#6b8ba4", lineHeight: 1.5 }}>
+              This drill requires telephony integration and a verified phone number. It will become available once the call-delivery backend is connected.
+            </div>
+          </div>
+        </div>
+
+        <div style={{ backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <IconWarning size={14} color="#ff6b35" />
+          <div>
+            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: "#ff6b35", marginBottom: 4 }}>COIN REWARDS</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35", lineHeight: 1.5 }}>
+              Coins will be credited automatically once the backend reports the call outcome.
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <PixelBtn onClick={() => {}} color="#2a3a5c" textColor="#6b8ba4" size="lg" full disabled>
+            [ START CALL - COMING SOON ]
+          </PixelBtn>
           <PixelBtn onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>BACK TO DRILLS</PixelBtn>
         </div>
       </div>
@@ -6046,6 +6147,11 @@ export default function App() {
                 onBack={() => setScreen("drill-select")}
               />
             )}
+            {screen === "realistic-phone-intro" && (
+              <RealisticPhoneDrillIntroScreen
+                onBack={() => setScreen("drill-select")}
+              />
+            )}
             {screen === "realistic-email-intro" && (
               <RealisticEmailDrillIntroScreen
                 onBack={() => setScreen("drill-select")}
@@ -6082,6 +6188,7 @@ export default function App() {
                 onCall={startCall}
                 onSms={startSms}
                 onEmail={startEmail}
+                onRealisticPhone={() => setScreen("realistic-phone-intro")}
                 onTelegram={() => setScreen("telegram-intro")}
                 onRealisticEmail={() => setScreen("realistic-email-intro")}
                 onBack={goHome}
