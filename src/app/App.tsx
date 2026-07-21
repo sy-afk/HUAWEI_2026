@@ -3,27 +3,25 @@ import { useState, useEffect, useRef } from "react";
 // ─── Backend API helpers ──────────────────────────────────────────────────
 // These keep the richer Figma UI connected to the existing demo backend, while
 // still allowing the prototype to run with mock data when the backend is down.
-// Who this device is acting as. Set once the user verifies their phone; until then the
-// backend falls back to its seeded demo user. Without this, a registered person's drills
-// and results would be attributed to the default user instead of them.
-const USER_KEY = "safespace_user_id";
-function currentUserId(): string | null {
-  try { return localStorage.getItem(USER_KEY); } catch { return null; }
+// Session token issued by the server after phone verification. The server derives WHO
+// we are from this token — the client never asserts a user id, because a drill places a
+// real phone call and a client-supplied id would let anyone target anyone.
+// Anonymous visitors simply have no token and act as the shared demo account.
+const TOKEN_KEY = "safespace_session_token";
+function sessionToken(): string | null {
+  try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
 }
-function setCurrentUserId(id: string) {
-  try { localStorage.setItem(USER_KEY, id); } catch { /* private mode: fall back to default user */ }
+function setSessionToken(token: string) {
+  try { localStorage.setItem(TOKEN_KEY, token); } catch { /* private mode: stay anonymous */ }
 }
-// User ids are E.164 phone numbers — the '+' MUST be percent-encoded or Express
-// decodes it as a space and the lookup misses.
-function withUser(path: string): string {
-  const id = currentUserId();
-  if (!id) return path;
-  return `${path}${path.includes("?") ? "&" : "?"}user=${encodeURIComponent(id)}`;
+function authHeaders(): Record<string, string> {
+  const t = sessionToken();
+  return t ? { authorization: `Bearer ${t}` } : {};
 }
 
 async function apiGet<T>(path: string): Promise<T | null> {
   try {
-    const r = await fetch(path);
+    const r = await fetch(path, { headers: authHeaders() });
     return r.ok ? ((await r.json()) as T) : null;
   } catch {
     return null;
@@ -34,8 +32,8 @@ async function reportOutcome(outcome: string, channel: DrillType): Promise<numbe
   try {
     const r = await fetch("/api/drills/practice-result", {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ outcome, channel, user: currentUserId() ?? undefined }),
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ outcome, channel }),
     });
     if (!r.ok) return null;
     const data = await r.json();
@@ -3986,8 +3984,8 @@ function RegisterScreen({ onDone, onBack }: { onDone: () => void; onBack: () => 
       const r = await fetch("/api/verify/check", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone, code, name }) });
       const d = await r.json();
       if (!r.ok || !d.ok) { setMsg(d.error || "Incorrect code"); setBusy(false); return; }
-      // Act as this user from now on, so their drills/results are attributed to them.
-      if (d.userId) setCurrentUserId(d.userId);
+      // Store the server-issued session token — this is what authorises real drills.
+      if (d.token) setSessionToken(d.token);
       setMsg("VERIFIED! You're registered."); setTimeout(onDone, 1000);
     } catch { setMsg("Network error"); }
     setBusy(false);
@@ -5971,7 +5969,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    apiGet<{ pending: { screen: Screen; xpGained: number; channel?: DrillType } | null }>(withUser("/api/drills/pending-result")).then((data) => {
+    apiGet<{ pending: { screen: Screen; xpGained: number; channel?: DrillType } | null }>("/api/drills/pending-result").then((data) => {
       if (data?.pending?.screen) {
         setDrillType(data.pending.channel ?? "call");
         setResultXp(data.pending.xpGained);

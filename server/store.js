@@ -2,8 +2,21 @@
 // model) when it's real. Seeds from data.seed.json on first run.
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { computeResult } from './xp.js';
+
+// Fields that must NEVER leave the server in a list/leaderboard response.
+// `phone` is PII; sessions are bearer credentials.
+const PRIVATE_FIELDS = ['phone'];
+
+/** Strip PII before sending a user record to any client. */
+export function publicUser(u) {
+  if (!u) return u;
+  const safe = { ...u };
+  for (const f of PRIVATE_FIELDS) delete safe[f];
+  return safe;
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_FILE = path.join(__dirname, 'data.json');
@@ -31,6 +44,7 @@ export function listConsentedUsers() {
 }
 
 // Leaderboard = users ranked by xp, shaped for the React LeaderboardScreen.
+// Explicit field list — never spreads the raw user, so PII can't leak in.
 export function getLeaderboard() {
   const db = load();
   return Object.values(db.users)
@@ -43,9 +57,10 @@ export function getLeaderboard() {
  * and (for scored real calls) queue a pending result the app shows on next open.
  */
 // All family members, shaped for the React FamilyHomeScreen (dollhouse rooms).
+// Projected — this endpoint is world-readable, so it must not carry phone numbers.
 export function getFamily() {
   const db = load();
-  return Object.values(db.users);
+  return Object.values(db.users).map(publicUser);
 }
 
 export function applyOutcome({ userId, outcome, channel = 'call', practice = false }) {
@@ -120,11 +135,14 @@ export function recordDrillFired({ userId, channel = 'call', callId = null }) {
 // Called by /api/verify/check after OTP succeeds. Guests are keyed by their number.
 export function registerVerifiedUser({ phone, name }) {
   const db = load();
-  const id = phone;
-  if (!db.users[id]) {
-    db.users[id] = {
+  // Look up by phone, but key the record by an OPAQUE id. Using the phone number as the
+  // primary key made it PII that leaked through every id-bearing response and URL.
+  let user = Object.values(db.users).find((u) => u.phone === phone);
+  if (!user) {
+    const id = `usr_${crypto.randomUUID()}`;
+    user = {
       id,
-      name: (name || 'GUEST').toString().toUpperCase().slice(0, 10) || 'GUEST',
+      name: (name || 'GUEST').toString().trim().toUpperCase().slice(0, 10) || 'GUEST',
       role: 'ROOKIE',
       phone,
       consentToDrills: true,
@@ -132,11 +150,40 @@ export function registerVerifiedUser({ phone, name }) {
       primaryColor: '#4ecdc4', badgeCount: 0, badgeTotal: 9,
       roomName: 'GUEST ROOM', roomBg: '#081420', safeThisWeek: true, recentDrillResult: null,
     };
+    db.users[id] = user;
   }
-  db.users[id].phone = phone;
-  db.users[id].consentToDrills = true;
+  user.phone = phone;
+  user.consentToDrills = true;
   db.consentEvents = db.consentEvents || [];
-  db.consentEvents.push({ userId: id, type: 'granted', channel: 'otp', at: new Date().toISOString() });
+  db.consentEvents.push({ userId: user.id, type: 'granted', channel: 'otp', at: new Date().toISOString() });
   save(db);
-  return db.users[id];
+  return db.users[user.id];
+}
+
+// --- Sessions -------------------------------------------------------------
+// A drill places a real phone call, so the caller must prove who they are with a
+// server-issued bearer token. A client-supplied user id is an assertion, not proof.
+
+/** Issue a session token for a verified user. Returns the opaque token. */
+export function createSession(userId) {
+  const db = load();
+  db.sessions = db.sessions || {};
+  const token = crypto.randomBytes(32).toString('hex');
+  db.sessions[token] = { userId, createdAt: new Date().toISOString() };
+  save(db);
+  return token;
+}
+
+/** Look up a user by phone (server-internal only — never expose phone to clients). */
+export function getUserByPhone(phone) {
+  if (!phone) return null;
+  const db = load();
+  return Object.values(db.users).find((u) => u.phone === phone) || null;
+}
+
+/** Resolve a bearer token to its user id, or null. */
+export function getUserIdByToken(token) {
+  if (!token) return null;
+  const db = load();
+  return db.sessions?.[token]?.userId ?? null;
 }

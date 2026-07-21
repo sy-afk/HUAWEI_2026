@@ -48,7 +48,14 @@ export async function fireDrillCall({ toNumber }) {
   // Tell Vapi where to POST the end-of-call report (so real outcomes flow back into XP).
   // Set PUBLIC_URL to your tunnel base, e.g. https://xxxx.trycloudflare.com
   if (process.env.PUBLIC_URL) {
-    assistant.server = { url: `${process.env.PUBLIC_URL.replace(/\/+$/, '')}/api/webhooks/vapi` };
+    assistant.server = {
+      url: `${process.env.PUBLIC_URL.replace(/\/+$/, '')}/api/webhooks/vapi`,
+      // Shared secret Vapi echoes back, so the webhook can prove a call report really
+      // came from Vapi rather than an attacker forging drill outcomes.
+      ...(process.env.VAPI_WEBHOOK_SECRET
+        ? { headers: { 'x-vapi-secret': process.env.VAPI_WEBHOOK_SECRET } }
+        : {}),
+    };
   }
 
   const res = await fetch('https://api.vapi.ai/call', {
