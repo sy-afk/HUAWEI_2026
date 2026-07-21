@@ -27,8 +27,8 @@ export async function POST(req: NextRequest) {
             
             OBJECTIVE: Choose a topic from the list of scam topics below. Using realistic pressure, and try to trick the users into accepting that it is an actual scam. (ALWAYS CHOOSE A DIFFERENT TOPIC)
 
-            IMPORTANT POINT 1: Include this link: "http://localhost:3000/drill-reveal" inside the email. User can only see the whole link when they hover over the text. Include a fake link placeholder like http://localhost:3000/api/drill-report" instead of a real URL.
-            IMPORTANT POINT 2: Include a part about reporting the email too -> Include this line "Report as Suspicious: http://localhost:3000/api/drill-report'. Include a fake link placeholder like http://localhost:3000/api/drill-report" instead of a real URL.
+            IMPORTANT POINT 1: Include this link: "huawei-tech4life.vercel.app/api/drill-reveal" inside the email. User can only see the whole link when they hover over the text. Include a fake link placeholder like "huawei-tech4life.vercel.app/api/drill-reveal" instead of a real URL.
+            IMPORTANT POINT 2: Include a part about reporting the email too -> Include this line "Report as Suspicious: "huawei-tech4life.vercel.app/api/drill-report"" instead of a real URL.
             IMPORTANT POINT 3; ALWAYS CHOOSE A DIFFERENT TOPIC
 
             List of topics:
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
             STYLE: Choose one topic from the list of topics above (ALWAYS CHOOSE A DIFFERENT TOPIC). Write as a short email (subject line + 2-4 sentence body) regarding the chosen topic. Use urgent but professional phrasing
             typical of phishing emails ("Immediate Action Required", "Final Notice", official-sounding sign-offs).
-            Include a fake link placeholder like http://localhost:3000/drill-reveal instead of a real URL. Include both important point 1 & 2. 
+            Include a fake link placeholder like "huawei-tech4life.vercel.app/api/drill-reveal" instead of a real URL. Include both important point 1 & 2. 
             
             ESCALATION (advance only when resisted, one email per turn): 1 calm authority -> 2 urgency ->
             3 assert authority -> 4 mild pressure (threat of account freeze/legal referral, never physical harm).
