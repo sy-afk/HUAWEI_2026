@@ -3,7 +3,7 @@
 import express from 'express';
 import path from 'path';
 import crypto from 'crypto';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import {
   getUser, getUserByPhone, getFamily, getLeaderboard, applyOutcome, takePendingResult,
   recordDrillFired, registerVerifiedUser, publicUser, createSession, getUserIdByToken,
@@ -207,17 +207,24 @@ if (process.env.ENABLE_DEMO_ROUTES === 'true') {
 app.use(express.static(DIST));
 app.get('*', (_req, res) => res.sendFile(path.join(DIST, 'index.html')));
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`SafeSpace backend on http://localhost:${PORT}`);
-  const mode = verifyMode();
-  if (mode === 'dev') {
-    console.warn(`[verify] mode=dev — ALLOW_DEV_VERIFY=true, code "${'0'.repeat(6)}" accepted. NEVER enable in production.`);
-  } else if (mode === 'disabled') {
-    console.warn('[verify] mode=disabled — phone registration will refuse (503). Set TWILIO_* keys, or ALLOW_DEV_VERIFY=true for offline demos.');
-  } else {
-    console.log('[verify] mode=twilio — real Verify SMS');
-  }
-});
+// Only bind a port when run directly (`node server/index.js`). Importing this module —
+// e.g. from the route tests — must not start a listener or occupy port 3000.
+const isEntrypoint =
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isEntrypoint) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`SafeSpace backend on http://localhost:${PORT}`);
+    const mode = verifyMode();
+    if (mode === 'dev') {
+      console.warn(`[verify] mode=dev — ALLOW_DEV_VERIFY=true, code "${'0'.repeat(6)}" accepted. NEVER enable in production.`);
+    } else if (mode === 'disabled') {
+      console.warn('[verify] mode=disabled — phone registration will refuse (503). Set TWILIO_* keys, or ALLOW_DEV_VERIFY=true for offline demos.');
+    } else {
+      console.log('[verify] mode=twilio — real Verify SMS');
+    }
+  });
+}
 
 export { app };
