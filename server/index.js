@@ -10,6 +10,7 @@ import {
 } from './store.js';
 import { fireDrillCall, outcomeFromVapiWebhook } from './vapi.js';
 import { startVerification, checkVerification, rateLimited, verifyMode } from './verify.js';
+import { sendDrillEmail, emailConfigured } from './email.js';
 
 // Verification failures that mean "not configured" are a 503, not a bad request.
 const verifyErrStatus = (e) => (e?.code === 'VERIFY_UNAVAILABLE' ? 503 : 502);
@@ -104,7 +105,7 @@ app.post('/api/verify/check', async (req, res) => {
   try {
     const approved = await checkVerification(phone, code);
     if (!approved) return res.status(401).json({ ok: false, error: 'incorrect or expired code' });
-    const user = registerVerifiedUser({ phone, name });
+    const user = registerVerifiedUser({ phone, name, email: req.body?.email });
     // Proving control of the number is what earns a session; the token is the only
     // thing that later authorises firing a real call to it.
     const token = createSession(user.id);
@@ -134,6 +135,29 @@ app.post('/api/drills/fire', async (req, res) => {
     res.json({ ok: true, callId: call.id, status: call.status });
   } catch (e) {
     return fail(res, 502, 'could not place the drill call', e);
+  }
+});
+
+// --- Real EMAIL drill. Same contract as /fire: AUTHENTICATION REQUIRED, and the
+//     recipient is the session user's OWN stored address — never one from the request.
+//     (The standalone email-webapp took a target address from the body with no auth,
+//     which made it an open phishing relay.) ---
+app.post('/api/drills/email', async (req, res) => {
+  const userId = sessionUserId(req);
+  if (!userId) return res.status(401).json({ error: 'sign in (verify your phone) to run a real drill' });
+
+  const user = getUser(userId);
+  if (!user) return res.status(401).json({ error: 'session no longer valid' });
+  if (!user.consentToDrills) return res.status(403).json({ error: 'user has not consented to drills' });
+  if (!user.email) return res.status(400).json({ error: 'no email on file — add one when you register' });
+  if (!emailConfigured()) return fail(res, 503, 'email drills are not configured');
+
+  try {
+    await sendDrillEmail({ to: user.email });
+    recordDrillFired({ userId, channel: 'email' });
+    res.json({ ok: true });
+  } catch (e) {
+    return fail(res, 502, 'could not send the drill email', e);
   }
 });
 

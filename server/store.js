@@ -8,7 +8,7 @@ import { computeResult } from './xp.js';
 
 // Fields that must NEVER leave the server in a list/leaderboard response.
 // `phone` is PII; sessions are bearer credentials.
-const PRIVATE_FIELDS = ['phone'];
+const PRIVATE_FIELDS = ['phone', 'email'];
 
 /** Strip PII before sending a user record to any client. */
 export function publicUser(u) {
@@ -133,7 +133,7 @@ export function recordDrillFired({ userId, channel = 'call', callId = null }) {
 
 // Upsert a phone-verified user and log a 'granted' consent event (the audit trail).
 // Called by /api/verify/check after OTP succeeds. Guests are keyed by their number.
-export function registerVerifiedUser({ phone, name }) {
+export function registerVerifiedUser({ phone, name, email }) {
   const db = load();
   // Look up by phone, but key the record by an OPAQUE id. Using the phone number as the
   // primary key made it PII that leaked through every id-bearing response and URL.
@@ -153,6 +153,10 @@ export function registerVerifiedUser({ phone, name }) {
     db.users[id] = user;
   }
   user.phone = phone;
+  // Optional address supplied while consenting. Email drills can ONLY go to this stored
+  // address — never to one named in a request, which is what made the standalone
+  // email-webapp an open phishing relay.
+  if (email) user.email = String(email).trim().toLowerCase();
   user.consentToDrills = true;
   db.consentEvents = db.consentEvents || [];
   db.consentEvents.push({ userId: user.id, type: 'granted', channel: 'otp', at: new Date().toISOString() });
