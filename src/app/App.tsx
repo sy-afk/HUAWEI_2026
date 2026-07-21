@@ -61,7 +61,9 @@ type Screen =
   | "family-chat"
   | "payday"
   | "notifications"
-  | "notification-detail";
+  | "notification-detail"
+  | "telegram-intro"
+  | "realistic-email-intro";
 
 type Tab = "home" | "leaderboard" | "store" | "profile";
 
@@ -454,6 +456,46 @@ function IconChatBubble({ size = 20, color = "#4ecdc4" }: { size?: number; color
       <rect x={3} y={3} width={2} height={2} fill={color} />
       <rect x={6} y={3} width={2} height={2} fill={color} />
       <rect x={9} y={3} width={1} height={2} fill={color} />
+    </svg>
+  );
+}
+
+function IconTelegram({ size = 20, color = "#00d4ff" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 12 12" style={{ imageRendering: "pixelated", display: "block" }}>
+      <rect x={0} y={4} width={2} height={2} fill={color} />
+      <rect x={2} y={3} width={2} height={4} fill={color} />
+      <rect x={4} y={2} width={2} height={6} fill={color} />
+      <rect x={6} y={1} width={2} height={8} fill={color} />
+      <rect x={8} y={0} width={2} height={10} fill={color} />
+      <rect x={10} y={2} width={2} height={6} fill={color} />
+      <rect x={4} y={5} width={2} height={3} fill="#0a0e1a" opacity={0.4} />
+      <rect x={6} y={6} width={2} height={3} fill="#0a0e1a" opacity={0.3} />
+      <rect x={2} y={9} width={4} height={1} fill={color} opacity={0.6} />
+      <rect x={3} y={10} width={2} height={1} fill={color} opacity={0.4} />
+    </svg>
+  );
+}
+
+function IconRealEmail({ size = 20, color = "#ff6b35" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 12 10" style={{ imageRendering: "pixelated", display: "block" }}>
+      <rect x={0} y={0} width={12} height={10} fill={color} />
+      <rect x={1} y={1} width={10} height={8} fill="#111827" />
+      <rect x={0} y={0} width={1} height={1} fill={color} />
+      <rect x={1} y={1} width={1} height={1} fill={color} />
+      <rect x={2} y={2} width={1} height={1} fill={color} />
+      <rect x={3} y={3} width={1} height={1} fill={color} />
+      <rect x={4} y={4} width={1} height={1} fill={color} />
+      <rect x={5} y={5} width={2} height={1} fill={color} />
+      <rect x={7} y={4} width={1} height={1} fill={color} />
+      <rect x={8} y={3} width={1} height={1} fill={color} />
+      <rect x={9} y={2} width={1} height={1} fill={color} />
+      <rect x={10} y={1} width={1} height={1} fill={color} />
+      <rect x={11} y={0} width={1} height={1} fill={color} />
+      <rect x={1} y={8} width={10} height={1} fill={color} />
+      <rect x={9} y={0} width={3} height={3} fill="#ff2d55" />
+      <rect x={10} y={1} width={1} height={1} fill="#ffffff" opacity={0.7} />
     </svg>
   );
 }
@@ -1710,10 +1752,14 @@ function TitleScreen({ onNext }: { onNext: () => void }) {
 // SCREEN: DRILL SELECT 
 // ─────────────────────────────────────────────────────────────────────────
 function DrillSelectScreen({
-  onCall, onSms, onEmail, onBack,
+  onCall, onSms, onEmail, onTelegram, onRealisticEmail, onBack,
 }: {
-  activeMemberId: string;
-  onCall: () => void; onSms: () => void; onEmail: () => void; onBack: () => void;
+  onCall: () => void;
+  onSms: () => void;
+  onEmail: () => void;
+  onTelegram: () => void;
+  onRealisticEmail: () => void;
+  onBack: () => void;
 }) {
   return (
     <div className="flex flex-col h-full overflow-y-auto" style={{ scrollbarWidth: "none" }}>
@@ -1728,6 +1774,15 @@ function DrillSelectScreen({
       <div className="flex flex-col gap-4 px-4 py-5 flex-1">
         <div style={{ fontFamily: "'VT323', monospace", fontSize: 18, color: "#6b8ba4", textAlign: "center", lineHeight: 1.4 }}>
           Train against different scam attacks.
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+          <div style={{ flex: 1, height: 2, backgroundColor: "#2a3a5c" }} />
+          <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: "#00ff88", letterSpacing: 2 }}>GAME DRILLS</div>
+          <div style={{ flex: 1, height: 2, backgroundColor: "#2a3a5c" }} />
+        </div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#6b8ba4", textAlign: "center", marginTop: -4, lineHeight: 1.4 }}>
+          In-app simulations. Full coin rewards.
         </div>
 
         <div style={{ backgroundColor: "#111827", border: "4px solid #ff6b35", boxShadow: "4px 4px 0 #ff6b35", padding: "20px 16px" }}>
@@ -1790,7 +1845,191 @@ function DrillSelectScreen({
           <PixelBtn onClick={onEmail} color="#c77dff" textColor="#0a0e1a" size="md" full>START EMAIL DRILL</PixelBtn>
         </div>
 
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+          <div style={{ flex: 1, height: 2, backgroundColor: "#2a3a5c" }} />
+          <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: "#00d4ff", letterSpacing: 2 }}>REALISTIC DRILLS</div>
+          <div style={{ flex: 1, height: 2, backgroundColor: "#2a3a5c" }} />
+        </div>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#6b8ba4", textAlign: "center", marginTop: -4, lineHeight: 1.4 }}>
+          External training. Backend integration required.
+        </div>
+
+        <div style={{ backgroundColor: "#111827", border: "4px solid #00d4ff", boxShadow: "4px 4px 0 #00d4ff", padding: "20px 16px" }}>
+          <div className="flex items-center gap-3 mb-3">
+            <div style={{ filter: "drop-shadow(0 0 6px rgba(0,212,255,0.8))" }}>
+              <IconTelegram size={28} color="#00d4ff" />
+            </div>
+            <div>
+              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 9, color: "#00d4ff" }}>TELEGRAM BOT</div>
+              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 5, color: "#2a3a5c", marginTop: 3 }}>REAL CONVERSATION</div>
+            </div>
+          </div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", marginBottom: 14, lineHeight: 1.5 }}>
+            Practice with our Telegram scam-fighter bot.
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <IconCoin size={10} color="#6b8ba4" />
+            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 5, color: "#6b8ba4" }}>COINS: PENDING BACKEND</div>
+          </div>
+          <PixelBtn onClick={onTelegram} color="#00d4ff" textColor="#0a0e1a" size="md" full>OPEN TELEGRAM DRILL</PixelBtn>
+        </div>
+
+        <div style={{ backgroundColor: "#111827", border: "4px solid #ff6b35", boxShadow: "4px 4px 0 #ff6b35", padding: "20px 16px" }}>
+          <div className="flex items-center gap-3 mb-3">
+            <div style={{ filter: "drop-shadow(0 0 6px rgba(255,107,53,0.8))" }}>
+              <IconRealEmail size={28} color="#ff6b35" />
+            </div>
+            <div>
+              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 9, color: "#ff6b35" }}>REAL INBOX EMAIL</div>
+              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 5, color: "#2a3a5c", marginTop: 3 }}>SENT TO YOUR MAILBOX</div>
+            </div>
+          </div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", marginBottom: 14, lineHeight: 1.5 }}>
+            Get simulated phishing emails in your real inbox.
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <IconCoin size={10} color="#6b8ba4" />
+            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 5, color: "#6b8ba4" }}>COINS: PENDING BACKEND</div>
+          </div>
+          <PixelBtn onClick={onRealisticEmail} color="#ff6b35" textColor="#0a0e1a" size="md" full>SETUP REAL DRILL</PixelBtn>
+        </div>
+
         <PixelBtn onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>BACK HOME</PixelBtn>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// SCREEN: TELEGRAM DRILL INTRO — explains flow, then opens Telegram bot
+// ─────────────────────────────────────────────────────────────────────────
+const TELEGRAM_BOT_URL = "https://t.me/drillmodebot";
+
+function TelegramDrillIntroScreen({ onOpen, onBack }: { onOpen: () => void; onBack: () => void }) {
+  return (
+    <div className="flex flex-col h-full">
+      <SubPageHeader title="TELEGRAM DRILL" titleColor="#00d4ff" onBack={onBack} />
+
+      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", padding: "20px 16px" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, marginBottom: 20 }}>
+          <div style={{ filter: "drop-shadow(0 0 12px rgba(0,212,255,0.8))" }}>
+            <IconTelegram size={64} color="#00d4ff" />
+          </div>
+          <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 12, color: "#00d4ff", textAlign: "center", textShadow: "3px 3px 0 #003a4a" }}>
+            REAL BOT DRILL
+          </div>
+          <div style={{ fontFamily: "'VT323', monospace", fontSize: 18, color: "#4ecdc4", textAlign: "center", lineHeight: 1.4 }}>
+            Talk to a real scam-fighter bot on Telegram.
+          </div>
+        </div>
+
+        <div style={{ backgroundColor: "#111827", border: "3px solid #00d4ff", boxShadow: "3px 3px 0 #00d4ff", padding: "14px 16px", marginBottom: 14 }}>
+          <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: "#00d4ff", marginBottom: 10 }}>WHAT HAPPENS NEXT</div>
+          {[
+            "You will be sent to Telegram.",
+            "Start a chat with our drill bot.",
+            "Complete the scenarios in Telegram.",
+            "Come back to the app when done.",
+          ].map((line, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
+              <div style={{ width: 16, height: 16, backgroundColor: "#00d4ff", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: "#0a0e1a" }}>{i + 1}</span>
+              </div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.6, flex: 1 }}>{line}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35", padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <IconWarning size={14} color="#ff6b35" />
+          <div>
+            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: "#ff6b35", marginBottom: 4 }}>COIN REWARDS</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35", lineHeight: 1.5 }}>
+              Coins for this drill require backend integration. They will not be credited yet.
+            </div>
+          </div>
+        </div>
+
+        <div style={{ backgroundColor: "#0d1a24", border: "2px solid #2a3a5c", padding: "10px 12px", marginBottom: 20, display: "flex", alignItems: "center", gap: 8 }}>
+          <IconLink size={12} color="#00d4ff" />
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#00d4ff", flex: 1, wordBreak: "break-all" }}>
+            {TELEGRAM_BOT_URL}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <PixelBtn onClick={onOpen} color="#00d4ff" textColor="#0a0e1a" size="lg" full>[ OPEN TELEGRAM ]</PixelBtn>
+          <PixelBtn onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>BACK TO DRILLS</PixelBtn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// SCREEN: REALISTIC EMAIL DRILL INTRO — explains flow, disabled until backend
+// ─────────────────────────────────────────────────────────────────────────
+function RealisticEmailDrillIntroScreen({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="flex flex-col h-full">
+      <SubPageHeader title="REAL EMAIL DRILL" titleColor="#ff6b35" onBack={onBack} />
+
+      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", padding: "20px 16px" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, marginBottom: 20 }}>
+          <div style={{ filter: "drop-shadow(0 0 12px rgba(255,107,53,0.8))" }}>
+            <IconRealEmail size={64} color="#ff6b35" />
+          </div>
+          <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 12, color: "#ff6b35", textAlign: "center", textShadow: "3px 3px 0 #4a1a08" }}>
+            REAL INBOX DRILL
+          </div>
+          <div style={{ fontFamily: "'VT323', monospace", fontSize: 18, color: "#ffe66d", textAlign: "center", lineHeight: 1.4 }}>
+            Get simulated phishing emails in your real mailbox.
+          </div>
+        </div>
+
+        <div style={{ backgroundColor: "#111827", border: "3px solid #ff6b35", boxShadow: "3px 3px 0 #ff6b35", padding: "14px 16px", marginBottom: 14 }}>
+          <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: "#ff6b35", marginBottom: 10 }}>HOW IT WORKS</div>
+          {[
+            "We send 1-2 test emails to your registered address.",
+            "Some are phishing. Some are safe.",
+            "Handle them in your real email client.",
+            "Return to the app to see your score.",
+          ].map((line, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
+              <div style={{ width: 16, height: 16, backgroundColor: "#ff6b35", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: "#0a0e1a" }}>{i + 1}</span>
+              </div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.6, flex: 1 }}>{line}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ backgroundColor: "rgba(107,139,164,0.08)", border: "3px solid #6b8ba4", padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <IconLock size={14} color="#6b8ba4" />
+          <div>
+            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: "#6b8ba4", marginBottom: 4 }}>BACKEND NOT CONFIGURED</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#6b8ba4", lineHeight: 1.5 }}>
+              This drill requires email delivery infrastructure. Available in a future update once backend integration is complete.
+            </div>
+          </div>
+        </div>
+
+        <div style={{ backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35", padding: "12px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <IconWarning size={14} color="#ff6b35" />
+          <div>
+            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: "#ff6b35", marginBottom: 4 }}>COIN REWARDS</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35", lineHeight: 1.5 }}>
+              Coins will be credited automatically once backend reports outcomes.
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <PixelBtn onClick={() => {}} color="#2a3a5c" textColor="#6b8ba4" size="lg" full disabled>
+            [ SEND EMAILS - COMING SOON ]
+          </PixelBtn>
+          <PixelBtn onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>BACK TO DRILLS</PixelBtn>
+        </div>
       </div>
     </div>
   );
@@ -5663,6 +5902,10 @@ export default function App() {
     setScreen("drill-select");
   };
 
+  const handleOpenTelegram = () => {
+    window.open(TELEGRAM_BOT_URL, "_blank", "noopener,noreferrer");
+  };
+
   const { title, color } = getScreenTitle();
   const hasUnreadNotifications = notifications.some(n => !n.read);
 
@@ -5797,6 +6040,17 @@ export default function App() {
                 />
               );
             })()}
+            {screen === "telegram-intro" && (
+              <TelegramDrillIntroScreen
+                onOpen={handleOpenTelegram}
+                onBack={() => setScreen("drill-select")}
+              />
+            )}
+            {screen === "realistic-email-intro" && (
+              <RealisticEmailDrillIntroScreen
+                onBack={() => setScreen("drill-select")}
+              />
+            )}
             {screen === "payday" && <PaydayScreen coins={coins} onCollect={collectPayday} onClose={goHome} />}
             {screen === "family-drill-intro" && <FamilyDrillIntroScreen onStart={() => setScreen("family-round")} onBack={goHome} />}
             {screen === "family-round" && (
@@ -5824,7 +6078,14 @@ export default function App() {
             )}
 
             {screen === "drill-select" && (
-              <DrillSelectScreen activeMemberId={activeMemberId} onCall={startCall} onSms={startSms} onEmail={startEmail} onBack={goHome} />
+              <DrillSelectScreen
+                onCall={startCall}
+                onSms={startSms}
+                onEmail={startEmail}
+                onTelegram={() => setScreen("telegram-intro")}
+                onRealisticEmail={() => setScreen("realistic-email-intro")}
+                onBack={goHome}
+              />
             )}
             {screen === "incoming" && (
               <IncomingCallScreen
