@@ -1,10 +1,23 @@
-// Phone-ownership + consent verification via Twilio Verify, with a DEV BYPASS so the
-// whole flow is testable offline and safe to run on stage without live SMS.
+// Phone-ownership + consent verification via Twilio Verify.
 //
-// - If TWILIO_ACCOUNT_SID/AUTH_TOKEN/VERIFY_SERVICE_SID are set  -> real Twilio Verify SMS.
-// - Otherwise (dev/demo)                                          -> a fixed bypass code.
+// FAILS CLOSED. Three modes:
+//   'twilio'   — all three TWILIO_* vars set        -> real Verify SMS
+//   'dev'      — ALLOW_DEV_VERIFY=true (explicit!)  -> fixed bypass code, offline/demo
+//   'disabled' — anything else                      -> every verification is REFUSED
+//
+// The dev bypass must be opted into deliberately. A missing/typo'd TWILIO_* var must never
+// silently downgrade to "accept 000000 from anyone" — that would let a caller register a
+// number they don't own and have SafeSpace place a real drill call to a non-consenting person.
 
 export const DEV_CODE = '000000';
+
+export class VerificationUnavailable extends Error {
+  constructor() {
+    super('phone verification is not configured (set TWILIO_* keys, or ALLOW_DEV_VERIFY=true for offline demos)');
+    this.name = 'VerificationUnavailable';
+    this.code = 'VERIFY_UNAVAILABLE';
+  }
+}
 
 function twilioConfigured() {
   return Boolean(
@@ -12,6 +25,13 @@ function twilioConfigured() {
       process.env.TWILIO_AUTH_TOKEN &&
       process.env.TWILIO_VERIFY_SERVICE_SID
   );
+}
+
+/** 'twilio' | 'dev' | 'disabled' */
+export function verifyMode() {
+  if (twilioConfigured()) return 'twilio';
+  if (process.env.ALLOW_DEV_VERIFY === 'true') return 'dev';
+  return 'disabled';
 }
 
 function basicAuth() {
@@ -34,9 +54,14 @@ export function rateLimited(phone) {
   return false;
 }
 
-/** Send a verification code. Returns { dev, devCode? }. */
+/** Send a verification code. Returns { dev, devCode? }. Throws if verification is disabled. */
 export async function startVerification(phone) {
-  if (!twilioConfigured()) {
+  const mode = verifyMode();
+  if (mode === 'disabled') throw new VerificationUnavailable();
+  if (mode === 'dev') {
+    // Only reachable when an operator set ALLOW_DEV_VERIFY=true. Logged server-side so the
+    // code is recoverable even if a caller never sees the response body.
+    console.warn(`[verify] DEV BYPASS active — code for ${phone} is ${DEV_CODE}`);
     return { dev: true, devCode: DEV_CODE };
   }
   const sid = process.env.TWILIO_VERIFY_SERVICE_SID;
@@ -50,11 +75,11 @@ export async function startVerification(phone) {
   return { dev: false, status: data.status };
 }
 
-/** Check a code. Returns true iff it's valid/approved. */
+/** Check a code. Returns true iff it's valid/approved. Throws if verification is disabled. */
 export async function checkVerification(phone, code) {
-  if (!twilioConfigured()) {
-    return code === DEV_CODE;
-  }
+  const mode = verifyMode();
+  if (mode === 'disabled') throw new VerificationUnavailable();
+  if (mode === 'dev') return code === DEV_CODE;
   const sid = process.env.TWILIO_VERIFY_SERVICE_SID;
   const res = await fetch(`https://verify.twilio.com/v2/Services/${sid}/VerificationCheck`, {
     method: 'POST',
@@ -66,4 +91,4 @@ export async function checkVerification(phone, code) {
   return data.status === 'approved';
 }
 
-export const isDevMode = () => !twilioConfigured();
+export const isDevMode = () => verifyMode() === 'dev';

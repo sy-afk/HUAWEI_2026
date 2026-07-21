@@ -5,7 +5,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { getUser, getFamily, getLeaderboard, applyOutcome, takePendingResult, recordDrillFired, registerVerifiedUser } from './store.js';
 import { fireDrillCall, outcomeFromVapiWebhook } from './vapi.js';
-import { startVerification, checkVerification, rateLimited } from './verify.js';
+import { startVerification, checkVerification, rateLimited, verifyMode } from './verify.js';
+
+// Verification failures that mean "not configured" are a 503, not a bad request.
+const verifyErrStatus = (e) => (e?.code === 'VERIFY_UNAVAILABLE' ? 503 : 502);
 
 const E164 = /^\+[1-9]\d{6,14}$/;
 
@@ -51,9 +54,9 @@ app.post('/api/verify/start', async (req, res) => {
   if (rateLimited(phone)) return res.status(429).json({ error: 'too many attempts, wait a bit' });
   try {
     const out = await startVerification(phone);
-    res.json({ ok: true, ...out }); // out.dev + out.devCode in dev mode
+    res.json({ ok: true, ...out }); // out.dev + out.devCode only in explicit dev mode
   } catch (e) {
-    res.status(502).json({ error: String(e.message || e) });
+    res.status(verifyErrStatus(e)).json({ error: String(e.message || e) });
   }
 });
 
@@ -68,7 +71,7 @@ app.post('/api/verify/check', async (req, res) => {
     const user = registerVerifiedUser({ phone, name });
     res.json({ ok: true, userId: user.id, name: user.name });
   } catch (e) {
-    res.status(502).json({ error: String(e.message || e) });
+    res.status(verifyErrStatus(e)).json({ error: String(e.message || e) });
   }
 });
 
@@ -124,6 +127,16 @@ app.use(express.static(DIST));
 app.get('*', (_req, res) => res.sendFile(path.join(DIST, 'index.html')));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`SafeSpace backend on http://localhost:${PORT}`));
+app.listen(PORT, () => {
+  console.log(`SafeSpace backend on http://localhost:${PORT}`);
+  const mode = verifyMode();
+  if (mode === 'dev') {
+    console.warn(`[verify] mode=dev — ALLOW_DEV_VERIFY=true, code "${'0'.repeat(6)}" accepted. NEVER enable in production.`);
+  } else if (mode === 'disabled') {
+    console.warn('[verify] mode=disabled — phone registration will refuse (503). Set TWILIO_* keys, or ALLOW_DEV_VERIFY=true for offline demos.');
+  } else {
+    console.log('[verify] mode=twilio — real Verify SMS');
+  }
+});
 
 export { app };
