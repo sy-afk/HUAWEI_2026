@@ -19,6 +19,16 @@ function authHeaders(): Record<string, string> {
   return t ? { authorization: `Bearer ${t}` } : {};
 }
 
+// First-run tutorial. Shown once, then replayable from Home — people forget, and a
+// tutorial you can't get back to is worse than none.
+const TUTORIAL_KEY = "safespace_tutorial_seen";
+function hasSeenTutorial(): boolean {
+  try { return localStorage.getItem(TUTORIAL_KEY) === "1"; } catch { return false; }
+}
+function markTutorialSeen() {
+  try { localStorage.setItem(TUTORIAL_KEY, "1"); } catch { /* private mode: show it again, harmless */ }
+}
+
 async function apiGet<T>(path: string): Promise<T | null> {
   try {
     const r = await fetch(path, { headers: authHeaders() });
@@ -56,6 +66,7 @@ type Screen =
   | "store"
   | "profile"
   | "register"
+  | "tutorial"
   | "sms-inbox"
   | "sms-thread"
   | "sms-browser"
@@ -2637,12 +2648,13 @@ function MemberProfileOverlay({
   );
 }
 
-function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize, onTrainMember, onRegister, coins, soldItems }: {
+function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize, onTrainMember, onRegister, onTutorial, coins, soldItems }: {
   onDrillSelect: () => void; onFamilyDrill: () => void;
   onPayday: () => void;
   onCustomize: (memberId: string) => void;
   onTrainMember: (memberId: string) => void;
   onRegister: () => void;
+  onTutorial: () => void;
   coins: Record<string, number>; soldItems: string[];
 }) {
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
@@ -2669,6 +2681,8 @@ function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize,
           <PixelBtn onClick={onPayday} color="#ffe66d" textColor="#0a0e1a" size="md" full>PAYDAY SUNDAY</PixelBtn>
           <div style={{ height: 10 }} />
           <PixelBtn onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="md" full>[ OPT IN TO REAL CALL DRILLS ]</PixelBtn>
+          <div style={{ height: 10 }} />
+          <PixelBtn onClick={onTutorial} color="#1a2340" textColor="#6b8ba4" size="sm" full>HOW TO PLAY</PixelBtn>
         </div>
         <div style={{ padding: "0 16px 24px", backgroundColor: "#0a0e1a", fontFamily: "'Press Start 2P',monospace", fontSize: 5, color: "#6b8ba4", textAlign: "center" }}>
           Train together. Protect the whole household.
@@ -3944,6 +3958,89 @@ const ACHIEVEMENTS = [
   { id: 8, name: "TECH SCAM", unlocked: false, color: "#4ecdc4" },
   { id: 9, name: "ROMANCE DEF", unlocked: false, color: "#ff2d55" },
 ];
+
+// ─────────────────────────────────────────────────────────────────────────
+// SCREEN: TUTORIAL (first run, replayable) — styled as a game's "how to play"
+// ─────────────────────────────────────────────────────────────────────────
+const TUTORIAL_STEPS = [
+  {
+    accent: "#00ff88",
+    title: "DRILL MODE",
+    body: "Scammers practise on our families every day. This is where your family practises back — with drills that feel real, so the reflex sticks.",
+  },
+  {
+    accent: "#c77dff",
+    title: "YOUR FAMILY",
+    body: "Home is your household. Each room is one member — green shield means safe this week, red means a scam got through. Tap a room to see their level and streak.",
+  },
+  {
+    accent: "#ff6b35",
+    title: "RUN A DRILL",
+    body: "Pick a channel: CALL, SMS or EMAIL. A realistic scam comes at you and pressures you to act. Spot the red flags, then report it, ask family, or hang up.",
+  },
+  {
+    accent: "#ffe66d",
+    title: "SCORING",
+    body: "Resisting earns XP and extends your safe-streak. Getting caught costs the streak, never the dignity — and bailing out because you felt uneasy is never punished.",
+  },
+  {
+    accent: "#4ecdc4",
+    title: "REAL DRILLS",
+    body: "Opt in with your phone and drills arrive for real, when you least expect them. We only ever contact the number you verified, and every drill tells you it was a drill.",
+  },
+];
+
+function TutorialScreen({ onDone }: { onDone: () => void }) {
+  const [step, setStep] = useState(0);
+  const s = TUTORIAL_STEPS[step];
+  const last = step === TUTORIAL_STEPS.length - 1;
+
+  return (
+    <div style={{ position: "relative", height: "100%", overflow: "hidden" }}>
+      <Stars />
+      <div style={{ position: "relative", zIndex: 1, height: "100%", display: "flex", flexDirection: "column", padding: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 40 }}>
+          <div style={{ fontFamily: "'Press Start 2P',monospace", fontSize: 7, color: "#2a3a5c" }}>
+            HOW TO PLAY {step + 1}/{TUTORIAL_STEPS.length}
+          </div>
+          <button onClick={onDone} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+            <div style={{ fontFamily: "'Press Start 2P',monospace", fontSize: 7, color: "#6b8ba4" }}>SKIP</div>
+          </button>
+        </div>
+
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 22 }}>
+          <PixelMascot size={80} animate />
+          <div style={{ fontFamily: "'Press Start 2P',monospace", fontSize: 15, color: s.accent, textAlign: "center", textShadow: `3px 3px 0 #0a0e1a`, lineHeight: 1.4 }}>
+            {s.title}
+          </div>
+          <PixelPanel accent={s.accent} className="w-full">
+            <div style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: 14, color: "#e8f4f8", lineHeight: 1.7, textAlign: "center" }}>
+              {s.body}
+            </div>
+          </PixelPanel>
+
+          {/* progress pips */}
+          <div style={{ display: "flex", gap: 8 }}>
+            {TUTORIAL_STEPS.map((t, i) => (
+              <div key={t.title} style={{ width: 10, height: 10, backgroundColor: i === step ? s.accent : "#2a3a5c" }} />
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: 8 }}>
+          <PixelBtn onClick={() => (last ? onDone() : setStep(step + 1))} color={s.accent} size="lg" full>
+            {last ? "[ LET'S GO ]" : "[ NEXT ]"}
+          </PixelBtn>
+          {step > 0 && (
+            <PixelBtn onClick={() => setStep(step - 1)} color="#1a2340" textColor="#6b8ba4" size="sm" full>
+              BACK
+            </PixelBtn>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: REGISTER (phone-ownership + consent via OTP; dev bypass code offline)
@@ -6137,8 +6234,13 @@ export default function App() {
           )}
 
           <div className="flex-1 overflow-hidden">
-            {screen === "title" && <TitleScreen onNext={goHome} />}
+            {screen === "title" && (
+              <TitleScreen onNext={() => setScreen(hasSeenTutorial() ? "home" : "tutorial")} />
+            )}
             {screen === "register" && <RegisterScreen onDone={goHome} onBack={goHome} />}
+            {screen === "tutorial" && (
+              <TutorialScreen onDone={() => { markTutorialSeen(); goHome(); }} />
+            )}
 
             {screen === "home" && (
               <FamilyHomeScreen
@@ -6148,6 +6250,7 @@ export default function App() {
                 onCustomize={openCustomize}
                 onTrainMember={handleTrainMember}
                 onRegister={() => setScreen("register")}
+                onTutorial={() => setScreen("tutorial")}
                 coins={coins}
                 soldItems={soldItems}
               />
