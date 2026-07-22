@@ -27,13 +27,23 @@ let server;
 let base;
 
 before(async () => {
-  server = app.listen(0); // ephemeral port
-  await new Promise((r) => server.once('listening', r));
+  // Register the callback as part of listen(). Attaching a one-shot `listening`
+  // handler afterwards races with fast Node versions: the event can fire between
+  // app.listen() returning and server.once() being registered, leaving the suite
+  // waiting forever.
+  server = await new Promise((resolve, reject) => {
+    const listeningServer = app.listen(0, () => resolve(listeningServer)); // ephemeral port
+    listeningServer.once('error', reject);
+  });
   base = `http://127.0.0.1:${server.address().port}`;
 });
 
-after(() => {
-  server?.close();
+after(async () => {
+  if (server?.listening) {
+    await new Promise((resolve, reject) =>
+      server.close((err) => (err ? reject(err) : resolve())),
+    );
+  }
   fs.rmSync(DATA_FILE, { force: true });
 });
 
