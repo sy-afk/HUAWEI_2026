@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { publicUser, registerVerifiedUser } from './store.js';
+import { publicUser, registerVerifiedUser, createSession, getUserIdByToken } from './store.js';
 
 const DATA_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data.json');
 const freshStore = () => fs.rmSync(DATA_FILE, { force: true });
@@ -41,6 +41,24 @@ test('re-registering the same phone reuses the account and re-logs consent', () 
   const events = db.consentEvents.filter((e) => e.userId === first.id);
   assert.equal(events.length, 2, 'each grant is its own audit event, even a repeat');
   assert.ok(events.every((e) => e.type === 'granted' && e.channel === 'otp'));
+  freshStore();
+});
+
+// Everything that places a real call or sends a real message trusts this lookup. A token
+// that resolves when it shouldn't is an account takeover; one that is guessable is worse.
+test('a session token resolves to its user, and nothing else does', () => {
+  freshStore();
+  const u = registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
+  const token = createSession(u.id);
+
+  assert.equal(getUserIdByToken(token), u.id);
+  assert.equal(getUserIdByToken('not-a-real-token'), null, 'unknown token must not resolve');
+  assert.equal(getUserIdByToken(''), null, 'empty token must not resolve');
+  assert.equal(getUserIdByToken(undefined), null, 'missing token must not resolve');
+
+  assert.ok(token.length >= 32, `token too short to be unguessable: ${token.length} chars`);
+  assert.notEqual(token, u.id, 'the token must not be derivable from the user id');
+  assert.notEqual(createSession(u.id), token, 'each session gets a distinct token');
   freshStore();
 });
 
