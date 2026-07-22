@@ -66,7 +66,6 @@ type Screen =
   | "store"
   | "profile"
   | "register"
-  | "tutorial"
   | "sms-inbox"
   | "sms-thread"
   | "sms-browser"
@@ -2662,9 +2661,9 @@ function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize,
     <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
       <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
         <div style={{ height: 6, background: "linear-gradient(90deg,#2a3a5c,#3a4a6c,#2a3a5c)" }} />
-        <FamilySafetyBar coins={coins} />
+        <div data-tour="safety-bar"><FamilySafetyBar coins={coins} /></div>
         <HouseRoof />
-        <div style={{ position: "relative" }}>
+        <div data-tour="family-rooms" style={{ position: "relative" }}>
           <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 8, backgroundColor: "#2a3a5c", backgroundImage: "repeating-linear-gradient(0deg,#1a2a3c,#1a2a3c 4px,#2a3a5c 4px,#2a3a5c 8px)" }} />
           <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 8, backgroundColor: "#2a3a5c", backgroundImage: "repeating-linear-gradient(0deg,#1a2a3c,#1a2a3c 4px,#2a3a5c 4px,#2a3a5c 8px)" }} />
           {FAMILY_MEMBERS.map((member) => (
@@ -2675,12 +2674,12 @@ function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCustomize,
           <div style={{ fontFamily: "'Press Start 2P',monospace", fontSize: 5, color: "#2a3a5c", letterSpacing: 3 }}>████████████████████████████</div>
         </div>
         <div style={{ padding: "16px 16px 8px", backgroundColor: "#0a0e1a" }}>
-          <PixelBtn onClick={onFamilyDrill} color="#00ff88" size="lg" full>[ START FAMILY DRILL ]</PixelBtn>
+          <div data-tour="start-drill"><PixelBtn onClick={onFamilyDrill} color="#00ff88" size="lg" full>[ START FAMILY DRILL ]</PixelBtn></div>
         </div>
         <div style={{ padding: "0 16px 20px", backgroundColor: "#0a0e1a" }}>
           <PixelBtn onClick={onPayday} color="#ffe66d" textColor="#0a0e1a" size="md" full>PAYDAY SUNDAY</PixelBtn>
           <div style={{ height: 10 }} />
-          <PixelBtn onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="md" full>[ OPT IN TO REAL CALL DRILLS ]</PixelBtn>
+          <div data-tour="opt-in"><PixelBtn onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="md" full>[ OPT IN TO REAL CALL DRILLS ]</PixelBtn></div>
           <div style={{ height: 10 }} />
           <PixelBtn onClick={onTutorial} color="#1a2340" textColor="#6b8ba4" size="sm" full>HOW TO PLAY</PixelBtn>
         </div>
@@ -3960,85 +3959,146 @@ const ACHIEVEMENTS = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────
-// SCREEN: TUTORIAL (first run, replayable) — styled as a game's "how to play"
+// TOUR: coach-marks over the real UI, narrated by the mascot
 // ─────────────────────────────────────────────────────────────────────────
-const TUTORIAL_STEPS = [
+// Targets are found at runtime via data-tour attributes rather than refs threaded
+// through components — this file is huge and actively edited by others, so a lookup
+// by attribute keeps the footprint to one attribute per target.
+type TourStep = { target: string | null; accent: string; title: string; body: string };
+
+const TOUR_STEPS: TourStep[] = [
   {
+    target: null,
     accent: "#00ff88",
-    title: "DRILL MODE",
-    body: "Scammers practise on our families every day. This is where your family practises back — with drills that feel real, so the reflex sticks.",
+    title: "HI, I'M PIP!",
+    body: "Scammers practise on our families every day. Let me show you around so your family can practise back.",
   },
   {
-    accent: "#c77dff",
-    title: "YOUR FAMILY",
-    body: "Home is your household. Each room is one member — green shield means safe this week, red means a scam got through. Tap a room to see their level and streak.",
-  },
-  {
+    target: "safety-bar",
     accent: "#ff6b35",
-    title: "RUN A DRILL",
-    body: "Pick a channel: CALL, SMS or EMAIL. A realistic scam comes at you and pressures you to act. Spot the red flags, then report it, ask family, or hang up.",
+    title: "FAMILY SAFETY",
+    body: "Your household's week at a glance. A shield means they stayed safe; a red heart means a scam got through.",
   },
   {
-    accent: "#ffe66d",
-    title: "SCORING",
-    body: "Resisting earns XP and extends your safe-streak. Getting caught costs the streak, never the dignity — and bailing out because you felt uneasy is never punished.",
+    target: "family-rooms",
+    accent: "#c77dff",
+    title: "THE HOUSE",
+    body: "One room per person. Tap a room to see their level, XP and safe-streak. Everyone trains in their own room.",
   },
   {
+    target: "start-drill",
+    accent: "#00ff88",
+    title: "START A DRILL",
+    body: "This is the big one. Pick a call, SMS or email drill, then spot the red flags and report, ask family, or hang up.",
+  },
+  {
+    target: "opt-in",
     accent: "#4ecdc4",
-    title: "REAL DRILLS",
-    body: "Opt in with your phone and drills arrive for real, when you least expect them. We only ever contact the number you verified, and every drill tells you it was a drill.",
+    title: "GO LIVE",
+    body: "Opt in and drills arrive for real, when you least expect them. We only ever contact the number you verify, and every drill tells you it was a drill.",
   },
 ];
 
-function TutorialScreen({ onDone }: { onDone: () => void }) {
-  const [step, setStep] = useState(0);
-  const s = TUTORIAL_STEPS[step];
-  const last = step === TUTORIAL_STEPS.length - 1;
-
+function SpeechBubble({ step, index, total, onNext, onSkip, onBack, style }: {
+  step: TourStep; index: number; total: number;
+  onNext: () => void; onSkip: () => void; onBack: () => void;
+  style?: React.CSSProperties;
+}) {
+  const last = index === total - 1;
   return (
-    <div style={{ position: "relative", height: "100%", overflow: "hidden" }}>
-      <Stars />
-      <div style={{ position: "relative", zIndex: 1, height: "100%", display: "flex", flexDirection: "column", padding: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 40 }}>
-          <div style={{ fontFamily: "'Press Start 2P',monospace", fontSize: 7, color: "#2a3a5c" }}>
-            HOW TO PLAY {step + 1}/{TUTORIAL_STEPS.length}
-          </div>
-          <button onClick={onDone} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-            <div style={{ fontFamily: "'Press Start 2P',monospace", fontSize: 7, color: "#6b8ba4" }}>SKIP</div>
-          </button>
-        </div>
-
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 22 }}>
-          <PixelMascot size={80} animate />
-          <div style={{ fontFamily: "'Press Start 2P',monospace", fontSize: 15, color: s.accent, textAlign: "center", textShadow: `3px 3px 0 #0a0e1a`, lineHeight: 1.4 }}>
-            {s.title}
-          </div>
-          <PixelPanel accent={s.accent} className="w-full">
-            <div style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: 14, color: "#e8f4f8", lineHeight: 1.7, textAlign: "center" }}>
-              {s.body}
-            </div>
-          </PixelPanel>
-
-          {/* progress pips */}
-          <div style={{ display: "flex", gap: 8 }}>
-            {TUTORIAL_STEPS.map((t, i) => (
-              <div key={t.title} style={{ width: 10, height: 10, backgroundColor: i === step ? s.accent : "#2a3a5c" }} />
-            ))}
-          </div>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: 8 }}>
-          <PixelBtn onClick={() => (last ? onDone() : setStep(step + 1))} color={s.accent} size="lg" full>
-            {last ? "[ LET'S GO ]" : "[ NEXT ]"}
-          </PixelBtn>
-          {step > 0 && (
-            <PixelBtn onClick={() => setStep(step - 1)} color="#1a2340" textColor="#6b8ba4" size="sm" full>
-              BACK
-            </PixelBtn>
-          )}
+    <div style={{ position: "fixed", zIndex: 10001, width: 300, ...style }}>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 8, marginBottom: -4 }}>
+        <PixelMascot size={44} animate />
+        <div style={{ fontFamily: "'Press Start 2P',monospace", fontSize: 9, color: step.accent, paddingBottom: 10 }}>
+          {step.title}
         </div>
       </div>
+      <div style={{ backgroundColor: "#111827", border: `4px solid ${step.accent}`, boxShadow: `4px 4px 0 #0a0e1a`, padding: 14 }}>
+        <div style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: 14, color: "#e8f4f8", lineHeight: 1.6 }}>
+          {step.body}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
+          <div style={{ display: "flex", gap: 5 }}>
+            {Array.from({ length: total }).map((_, i) => (
+              <div key={i} style={{ width: 8, height: 8, backgroundColor: i === index ? step.accent : "#2a3a5c" }} />
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {index > 0 && <PixelBtn onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm">BACK</PixelBtn>}
+            <PixelBtn onClick={onNext} color={step.accent} size="sm">{last ? "DONE" : "NEXT"}</PixelBtn>
+          </div>
+        </div>
+      </div>
+      <button onClick={onSkip} style={{ background: "none", border: "none", cursor: "pointer", padding: "8px 2px" }}>
+        <div style={{ fontFamily: "'Press Start 2P',monospace", fontSize: 7, color: "#6b8ba4" }}>SKIP TOUR</div>
+      </button>
     </div>
+  );
+}
+
+function TourOverlay({ onDone }: { onDone: () => void }) {
+  const [index, setIndex] = useState(0);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const step = TOUR_STEPS[index];
+
+  useEffect(() => {
+    let cancelled = false;
+    const measure = () => {
+      if (cancelled) return;
+      if (!step.target) return setRect(null);
+      const el = document.querySelector(`[data-tour="${step.target}"]`);
+      if (!el) return setRect(null); // target missing -> fall back to a centred bubble
+      setRect(el.getBoundingClientRect());
+    };
+    // Scroll the target into view first, then measure once it has settled.
+    if (step.target) {
+      const el = document.querySelector(`[data-tour="${step.target}"]`);
+      el?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+    const t = setTimeout(measure, step.target ? 380 : 0);
+    window.addEventListener("resize", measure);
+    return () => { cancelled = true; clearTimeout(t); window.removeEventListener("resize", measure); };
+  }, [index, step.target]);
+
+  const next = () => (index === TOUR_STEPS.length - 1 ? onDone() : setIndex(index + 1));
+  const pad = 6;
+
+  // Bubble goes below the highlight when there is room, otherwise above.
+  let bubbleStyle: React.CSSProperties = {
+    left: "50%", top: "50%", transform: "translate(-50%,-50%)",
+  };
+  if (rect) {
+    const below = rect.bottom + 210 < window.innerHeight;
+    bubbleStyle = {
+      left: Math.min(Math.max(rect.left + rect.width / 2 - 150, 12), window.innerWidth - 312),
+      top: below ? rect.bottom + pad + 14 : undefined,
+      bottom: below ? undefined : window.innerHeight - rect.top + pad + 14,
+    };
+  }
+
+  return (
+    <>
+      {/* Dim everything except the target. One element: a huge spread shadow around it. */}
+      <div
+        onClick={next}
+        style={{
+          position: "fixed", zIndex: 10000, cursor: "pointer",
+          ...(rect
+            ? {
+                left: rect.left - pad, top: rect.top - pad,
+                width: rect.width + pad * 2, height: rect.height + pad * 2,
+                boxShadow: `0 0 0 9999px rgba(4,6,12,0.88)`,
+                border: `3px solid ${step.accent}`,
+              }
+            : { inset: 0, backgroundColor: "rgba(4,6,12,0.88)" }),
+        }}
+      />
+      <SpeechBubble
+        step={step} index={index} total={TOUR_STEPS.length}
+        onNext={next} onBack={() => setIndex(Math.max(0, index - 1))} onSkip={onDone}
+        style={bubbleStyle}
+      />
+    </>
   );
 }
 
@@ -5806,6 +5866,7 @@ export default function App() {
   const [smsOutcome, setSmsOutcome] = useState<SmsOutcome | null>(null);
   const [emailOutcome, setEmailOutcome] = useState<EmailOutcome | null>(null);
   const [resultXp, setResultXp] = useState<number | null>(null);
+  const [tourOpen, setTourOpen] = useState(false);
 
   const [familyRoundIndex, setFamilyRoundIndex] = useState(0);
   const [familyAnswers, setFamilyAnswers] = useState<{ scenarioId: number; action: string; correct: boolean; foundClues: number[] }[]>([]);
@@ -6235,12 +6296,15 @@ export default function App() {
 
           <div className="flex-1 overflow-hidden">
             {screen === "title" && (
-              <TitleScreen onNext={() => setScreen(hasSeenTutorial() ? "home" : "tutorial")} />
+              <TitleScreen
+                onNext={() => {
+                  // The tour highlights real elements, so Home must be mounted first.
+                  goHome();
+                  if (!hasSeenTutorial()) setTourOpen(true);
+                }}
+              />
             )}
             {screen === "register" && <RegisterScreen onDone={goHome} onBack={goHome} />}
-            {screen === "tutorial" && (
-              <TutorialScreen onDone={() => { markTutorialSeen(); goHome(); }} />
-            )}
 
             {screen === "home" && (
               <FamilyHomeScreen
@@ -6250,7 +6314,7 @@ export default function App() {
                 onCustomize={openCustomize}
                 onTrainMember={handleTrainMember}
                 onRegister={() => setScreen("register")}
-                onTutorial={() => setScreen("tutorial")}
+                onTutorial={() => setTourOpen(true)}
                 coins={coins}
                 soldItems={soldItems}
               />
@@ -6477,6 +6541,9 @@ export default function App() {
           )}
         </div>
       </PhoneFrame>
+      {tourOpen && screen === "home" && (
+        <TourOverlay onDone={() => { markTutorialSeen(); setTourOpen(false); }} />
+      )}
     </>
   );
 }
