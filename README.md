@@ -18,8 +18,12 @@ claim that collapses under a judge's question.
 |---|---|
 | **Voice call** | ✅ **Real.** Places a genuine phone call (Vapi → Twilio), Claude drives the persona, Azure Singapore-English voice. Verified end to end — a live call ran 2m10s and the real-OTP safety tripwire fired correctly. Cost: **$0.18** per call. |
 | **Phone registration (OTP)** | ✅ **Real.** Twilio Verify sends an actual SMS code. Fully self-serve in-app. |
+| **SMS drill** | ✅ **Real.** Sends an actual scam text (Twilio Programmable SMS) from a curated scenario library, then a guaranteed reveal text. Verified end to end — both messages delivered. |
 | **Email drill** | ⚙️ **Built, needs keys.** Generates a phishing email (OpenAI) and sends it (Google Apps Script). Refuses with 503 until `OPENAI_API_KEY` + `GOOGLE_SCRIPT_URL` are set. |
-| **SMS drill** | 🎭 **Simulated in-app.** A mock inbox in the React app — no SMS is sent. |
+
+⚠️ **Trial-account caveat:** while Twilio is on a trial, every outbound SMS is prefixed
+`"Sent from your Twilio trial account - "`, which gives the drill away, and both calls and
+texts can only reach numbers on the verified-caller-ID list. Upgrading removes both.
 
 The in-app call/SMS/email drills also exist as **practice mode**: fully simulated, free,
 and safe to run on stage. Real drills award full XP; practice awards half.

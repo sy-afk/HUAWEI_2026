@@ -11,6 +11,7 @@ import {
 import { fireDrillCall, outcomeFromVapiWebhook } from './vapi.js';
 import { startVerification, checkVerification, rateLimited, verifyMode } from './verify.js';
 import { sendDrillEmail, emailConfigured } from './email.js';
+import { sendDrillSms, smsConfigured } from './sms.js';
 
 // Verification failures that mean "not configured" are a 503, not a bad request.
 const verifyErrStatus = (e) => (e?.code === 'VERIFY_UNAVAILABLE' ? 503 : 502);
@@ -158,6 +159,27 @@ app.post('/api/drills/email', async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     return fail(res, 502, 'could not send the drill email', e);
+  }
+});
+
+// --- Real SMS drill. Same contract as /fire and /email: AUTH REQUIRED, and the text
+//     goes to the session user's OWN verified number — never one from the request. ---
+app.post('/api/drills/sms', async (req, res) => {
+  const userId = sessionUserId(req);
+  if (!userId) return res.status(401).json({ error: 'sign in (verify your phone) to run a real drill' });
+
+  const user = getUser(userId);
+  if (!user) return res.status(401).json({ error: 'session no longer valid' });
+  if (!user.consentToDrills) return res.status(403).json({ error: 'user has not consented to drills' });
+  if (!user.phone) return res.status(400).json({ error: 'no verified phone on file' });
+  if (!smsConfigured()) return fail(res, 503, 'SMS drills are not configured');
+
+  try {
+    const out = await sendDrillSms({ to: user.phone, scenarioId: req.body?.scenario });
+    recordDrillFired({ userId, channel: 'sms' });
+    res.json({ ok: true, scenarioId: out.scenarioId, revealInMs: out.revealInMs });
+  } catch (e) {
+    return fail(res, 502, 'could not send the drill SMS', e);
   }
 });
 
