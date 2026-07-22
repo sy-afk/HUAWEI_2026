@@ -81,6 +81,15 @@ test('POST /api/drills/email cannot be aimed at an arbitrary address', async () 
   assert.equal(res.status, 401, 'no session -> refused before any address is considered');
 });
 
+test('POST /api/drills/sms is refused without a session token', async () => {
+  assert.equal((await post('/api/drills/sms')).status, 401);
+});
+
+test('POST /api/drills/sms cannot be aimed at another number via the body', async () => {
+  const res = await post('/api/drills/sms', { phone: '+6590000000', user: 'you' });
+  assert.equal(res.status, 401, 'no session -> refused before any number is considered');
+});
+
 // ─── Webhook authenticity (review finding 3) ──────────────────────────────
 test('POST /api/webhooks/vapi fails closed when no secret is configured', async () => {
   const res = await post('/api/webhooks/vapi', {
