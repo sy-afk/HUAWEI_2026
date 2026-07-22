@@ -64,6 +64,10 @@ app.get('/api/me', (req, res) => {
   res.json(publicUser(user));
 });
 
+// Liveness probe for systemd/monitoring. Deliberately says nothing about which
+// providers are configured — that would hand an attacker a map of the deployment.
+app.get('/api/health', (_req, res) => res.json({ ok: true, uptime: Math.round(process.uptime()) }));
+
 app.get('/api/leaderboard', (_req, res) => res.json(getLeaderboard()));
 
 app.get('/api/family', (_req, res) => res.json(getFamily()));

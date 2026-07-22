@@ -44,6 +44,20 @@ const post = (p, body, headers = {}) =>
     body: JSON.stringify(body ?? {}),
   });
 
+// systemd restarts the service when this stops answering, so it must respond even when
+// every provider is unconfigured — and must not describe the deployment to the internet.
+test('GET /api/health is public, cheap, and leaks no configuration', async () => {
+  const res = await fetch(base + '/api/health');
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.ok, true);
+  assert.equal(typeof body.uptime, 'number');
+  const asText = JSON.stringify(body).toLowerCase();
+  for (const leak of ['twilio', 'vapi', 'openai', 'key', 'secret', 'token', 'mode']) {
+    assert.ok(!asText.includes(leak), `health must not mention "${leak}"`);
+  }
+});
+
 // ─── PII (review finding 1) ───────────────────────────────────────────────
 test('GET /api/family never exposes phone or email', async () => {
   const res = await fetch(base + '/api/family');
