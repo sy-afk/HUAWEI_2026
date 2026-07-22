@@ -24,6 +24,26 @@ test('registerVerifiedUser gives an opaque id, never the phone number', () => {
 // record must never carry a phone number off the server. Regression test — these
 // endpoints previously returned the raw record, leaking every registered mobile.
 
+// Someone re-verifying (new device, cleared storage, lost session) must land back in
+// the SAME account — otherwise they silently lose their XP, streak and history, and the
+// leaderboard fills with duplicates of one person.
+test('re-registering the same phone reuses the account and re-logs consent', () => {
+  freshStore();
+  const first = registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
+  const again = registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
+
+  assert.equal(again.id, first.id, 'same number must map to the same account');
+
+  const db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+  const mine = Object.values(db.users).filter((u) => u.phone === '+6591234567');
+  assert.equal(mine.length, 1, 'must not create a duplicate user');
+
+  const events = db.consentEvents.filter((e) => e.userId === first.id);
+  assert.equal(events.length, 2, 'each grant is its own audit event, even a repeat');
+  assert.ok(events.every((e) => e.type === 'granted' && e.channel === 'otp'));
+  freshStore();
+});
+
 test('publicUser strips phone', () => {
   const safe = publicUser({ id: 'usr_1', name: 'GUEST', phone: '+6591234567', xp: 10 });
   assert.equal(safe.phone, undefined);
