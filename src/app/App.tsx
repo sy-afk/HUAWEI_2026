@@ -1211,13 +1211,16 @@ function XPBar({ current, max, color = "#00ff88" }: { current: number; max: numb
   );
 }
 
-function Blink({ children, ms = 600 }: { children: React.ReactNode; ms?: number }) {
+// `min` is the dimmed opacity. Default 0 (a true blink) suits the scam-warning text,
+// where vanishing is the point. Anything the user is meant to TAP should set a floor so
+// it never fully disappears — an invisible call-to-action reads as "not there yet".
+function Blink({ children, ms = 600, min = 0 }: { children: React.ReactNode; ms?: number; min?: number }) {
   const [vis, setVis] = useState(true);
   useEffect(() => {
     const t = setInterval(() => setVis((v) => !v), ms);
     return () => clearInterval(t);
   }, [ms]);
-  return <span style={{ opacity: vis ? 1 : 0 }}>{children}</span>;
+  return <span style={{ opacity: vis ? 1 : min, transition: `opacity ${Math.round(ms / 3)}ms linear` }}>{children}</span>;
 }
 
 function Scanlines() {
@@ -1260,19 +1263,44 @@ function Stars() {
   );
 }
 
+// On a desktop this draws a phone-shaped mockup. On an actual phone that mockup is the
+// problem: a fixed 390x844 box either overflows a small screen or floats in the middle of
+// a large one. So below ~520px we drop the bezel and go full-bleed, and above it we keep
+// the mockup but never let it exceed the viewport.
+//
+// Height uses dvh where supported: on mobile browsers 100vh includes the collapsing
+// URL bar, which leaves the bottom nav cut off until the user scrolls.
 function PhoneFrame({ children }: { children: React.ReactNode }) {
+  const [compact, setCompact] = useState(
+    () => typeof window !== "undefined" && window.innerWidth <= 520,
+  );
+  useEffect(() => {
+    const onResize = () => setCompact(window.innerWidth <= 520);
+    onResize();
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, []);
+
+  const inner: React.CSSProperties = compact
+    ? { width: "100%", height: "100dvh", backgroundColor: "#0a0e1a" }
+    : {
+        width: "min(390px, 100vw)",
+        height: "min(844px, 100dvh)",
+        backgroundColor: "#0a0e1a",
+        border: "6px solid #2a3a5c",
+        boxShadow: "8px 8px 0px #000, 0 0 40px rgba(0,255,136,0.15)",
+      };
+
   return (
-    <div className="flex items-center justify-center min-h-screen w-full bg-[#05080f]">
-      <div
-        className="relative overflow-hidden flex flex-col"
-        style={{
-          width: 390,
-          height: 844,
-          backgroundColor: "#0a0e1a",
-          border: "6px solid #2a3a5c",
-          boxShadow: "8px 8px 0px #000, 0 0 40px rgba(0,255,136,0.15)",
-        }}
-      >
+    <div
+      className="flex items-center justify-center w-full bg-[#05080f]"
+      style={{ height: compact ? "100dvh" : undefined, minHeight: compact ? undefined : "100vh" }}
+    >
+      <div className="relative overflow-hidden flex flex-col" style={inner}>
         {children}
       </div>
     </div>
@@ -1765,7 +1793,7 @@ function TitleScreen({ onNext }: { onNext: () => void }) {
       </div>
 
       <div className="relative z-10 flex flex-col items-center gap-6 mb-4">
-        <Blink ms={700}>
+        <Blink ms={700} min={0.5}>
           <PixelBtn onClick={onNext} color="#00ff88" size="lg">[ PRESS START ]</PixelBtn>
         </Blink>
         <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: "#2a3a5c" }}>
