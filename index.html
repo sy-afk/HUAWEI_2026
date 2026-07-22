@@ -8,6 +8,22 @@
       name="description"
       content="Retro-styled SafeSpace drill mode UI for scam call, SMS, and email training."
     />
+
+    <!-- Installable to the home screen: tapping the icon launches without the
+         browser URL bar, which is what makes it read as an app on stage. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0a0e1a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- iOS ignores the manifest entirely and needs its own tags. Status bar is
+         "black" rather than "black-translucent" on purpose: translucent draws
+         content underneath the clock, which would collide with the top of the
+         UI unless every screen handled safe-area insets. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="SafeSpace" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
     <style>
       html,
       body,
