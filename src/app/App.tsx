@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { unlock, playSfx, setMuted, setMusicEnabled, isMuted } from "./audio";
 
 // ─── Backend API helpers ──────────────────────────────────────────────────
 // These keep the richer Figma UI connected to the existing demo backend, while
@@ -99,6 +100,7 @@ interface AppSettings {
   drillFrequency: string;
   familyDrillEnabled: boolean;
   notificationsEnabled: boolean;
+  soundEnabled: boolean;
   difficulty: string;
   includeSafeMessages: boolean;
   autoExplain: boolean;
@@ -1155,7 +1157,9 @@ function PixelBtn({
   const txt = size === "lg" ? "text-[10px]" : size === "sm" ? "text-[7px]" : "text-[8px]";
   return (
     <button
-      onClick={onClick}
+      // Hooked here rather than at 60 call sites, so every button clicks. Disabled
+      // buttons never reach onClick, so they stay silent for free.
+      onClick={onClick ? () => { playSfx("press"); onClick(); } : undefined}
       disabled={disabled}
       onMouseDown={() => setPressed(true)}
       onMouseUp={() => setPressed(false)}
@@ -5114,9 +5118,14 @@ function SettingsScreen({ settings, onSettings, onNav }: { settings: AppSettings
           <ToggleSwitchB on={settings.familyDrillEnabled} onToggle={() => onSettings({ familyDrillEnabled: !settings.familyDrillEnabled })} color="#c77dff" />
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 28 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 8 }}>
           <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 8, color: "#e8f4f8" }}>NOTIFICATIONS</div>
           <ToggleSwitchB on={settings.notificationsEnabled} onToggle={() => onSettings({ notificationsEnabled: !settings.notificationsEnabled })} color="#ffe66d" />
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", backgroundColor: "#111827", border: "3px solid #2a3a5c", marginBottom: 28 }}>
+          <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 8, color: "#e8f4f8" }}>SOUND</div>
+          <ToggleSwitchB on={settings.soundEnabled} onToggle={() => onSettings({ soundEnabled: !settings.soundEnabled })} color="#00ff88" />
         </div>
 
         <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 9, color: "#ffe66d", marginBottom: 14 }}>ACCOUNT</div>
@@ -5921,6 +5930,9 @@ export default function App() {
     drillFrequency: "recurring",
     familyDrillEnabled: true,
     notificationsEnabled: true,
+    // Seeded from the persisted mute so the toggle matches what you'll actually hear
+    // after a reload. AppSettings itself isn't persisted; the audio module owns this.
+    soundEnabled: !isMuted(),
     difficulty: "Normal",
     includeSafeMessages: true,
     autoExplain: true,
@@ -6144,7 +6156,42 @@ export default function App() {
   const FAMILY_DRILL_SCREENS: Screen[] = ["family-round"];
   const DRILL_SCREENS: Screen[] = ["drill-select", "incoming", "call", "sms-inbox", "sms-thread", "sms-browser", "email-inbox", "email-detail", "email-browser", "email-download", "result-win", "result-lose", ...FAMILY_DRILL_SCREENS];
   const FULLSCREEN_ROUTES: Screen[] = ["customize", "family-chat", "payday"];
+
   const SUB_PAGE_ROUTES: Screen[] = ["account-settings", "privacy-settings", "accessibility-settings", "about-settings", "profile-edit", "avatar-customisation", "family-drill-intro", "family-summary"];
+
+  // Screens where a scam is actively being simulated, and music must NOT play: the
+  // premise is that the scam feels real, and a chiptune loop under an incoming call
+  // destroys that instantly. The drop to silence reads as tension, not as a bug.
+  //
+  // Deliberately NOT the same set as DRILL_SCREENS above, which drives layout chrome.
+  // This one omits `drill-select` (a menu) and both result screens (where the win
+  // fanfare plays and the loop should come back), and adds the realism intros.
+  const MUSIC_SILENT_SCREENS: Screen[] = [
+    "incoming", "call",
+    "sms-inbox", "sms-thread", "sms-browser",
+    "email-inbox", "email-detail", "email-browser", "email-download",
+    "realistic-phone-intro", "telegram-intro", "realistic-email-intro",
+    "family-round", "family-answer",
+  ];
+
+  // --- Audio ---------------------------------------------------------------
+  // All no-ops until unlock() has run from a real click (PRESS START); browsers refuse
+  // to start audio without a user gesture.
+
+  useEffect(() => {
+    setMusicEnabled(!MUSIC_SILENT_SCREENS.includes(screen));
+  }, [screen]);
+
+  // Stings on arrival at the screens that carry emotional weight.
+  useEffect(() => {
+    if (screen === "incoming") playSfx("incoming");
+    else if (screen === "result-win") playSfx("win");
+    else if (screen === "result-lose") playSfx("lose");
+  }, [screen]);
+
+  useEffect(() => {
+    setMuted(!settings.soundEnabled);
+  }, [settings.soundEnabled]);
 
   const isDrillFlow = DRILL_SCREENS.includes(screen);
   const isTitle = screen === "title";
@@ -6344,6 +6391,10 @@ export default function App() {
             {screen === "title" && (
               <TitleScreen
                 onNext={() => {
+                  // The only reliable place to start audio: browsers require a real
+                  // user gesture, and this is the one button everybody presses first.
+                  unlock();
+                  playSfx("select");
                   // The tour highlights real elements, so Home must be mounted first.
                   goHome();
                   if (!hasSeenTutorial()) setTourOpen(true);
