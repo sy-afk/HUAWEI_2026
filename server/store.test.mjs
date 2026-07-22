@@ -1,7 +1,24 @@
 // Run with: node --test
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { publicUser } from './store.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { publicUser, registerVerifiedUser } from './store.js';
+
+const DATA_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data.json');
+const freshStore = () => fs.rmSync(DATA_FILE, { force: true });
+
+// Regression: user ids used to BE the phone number, which made every id-bearing
+// response and URL carry PII. Ids must now be opaque and the phone kept separate.
+test('registerVerifiedUser gives an opaque id, never the phone number', () => {
+  freshStore();
+  const u = registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
+  assert.ok(u.id.startsWith('usr_'), `id should be opaque, got ${u.id}`);
+  assert.ok(!u.id.includes('6591234567'), 'the id must not embed the phone number');
+  assert.equal(u.phone, '+6591234567', 'the phone is still stored server-side for dialling');
+  freshStore();
+});
 
 // Guards the PII invariant: /api/family and /api/me are world-readable, so a user
 // record must never carry a phone number off the server. Regression test — these
