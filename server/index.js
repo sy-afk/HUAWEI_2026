@@ -23,19 +23,29 @@ function fail(res, status, publicMessage, err) {
   return res.status(status).json({ error: publicMessage });
 }
 
+// Express 4 does not catch rejections from `async` handlers — an unhandled one leaves
+// the request open until the client times out, which looks like a hung app rather than
+// an error. Store reads hit the network on the Redis backend, so every async route goes
+// through this and fails loudly instead.
+const asyncRoute = (handler) => (req, res, next) =>
+  Promise.resolve(handler(req, res, next)).catch((e) => {
+    if (res.headersSent) return;
+    fail(res, 500, 'something went wrong', e);
+  });
+
 // --- Auth: a drill places a REAL phone call, so identity must be proven with a
 // server-issued bearer token. A client-supplied user id is an assertion, not proof.
 function bearerToken(req) {
   const h = req.get('authorization') || '';
   return h.startsWith('Bearer ') ? h.slice(7).trim() : null;
 }
-/** Authenticated user id, or null. */
-function sessionUserId(req) {
+/** Resolves to the authenticated user id, or null. */
+async function sessionUserId(req) {
   return getUserIdByToken(bearerToken(req));
 }
 /** Authenticated user id, falling back to the shared demo account for anonymous visitors. */
-function actingUserId(req) {
-  return sessionUserId(req) || DEFAULT_USER;
+async function actingUserId(req) {
+  return (await sessionUserId(req)) || DEFAULT_USER;
 }
 
 function timingSafeEqualStr(a, b) {
@@ -58,40 +68,40 @@ app.use(express.json());
 // --- Read models (replace the React app's mock arrays) ---
 // Identity comes from the session token only — a client-supplied ?user= would let
 // anyone read any account.
-app.get('/api/me', (req, res) => {
-  const user = getUser(actingUserId(req));
+app.get('/api/me', asyncRoute(async (req, res) => {
+  const user = await getUser(await actingUserId(req));
   if (!user) return res.status(404).json({ error: 'unknown user' });
   res.json(publicUser(user));
-});
+}));
 
 // Liveness probe for systemd/monitoring. Deliberately says nothing about which
 // providers are configured — that would hand an attacker a map of the deployment.
 app.get('/api/health', (_req, res) => res.json({ ok: true, uptime: Math.round(process.uptime()) }));
 
-app.get('/api/leaderboard', (_req, res) => res.json(getLeaderboard()));
+app.get('/api/leaderboard', asyncRoute(async (_req, res) => res.json(await getLeaderboard())));
 
-app.get('/api/family', (_req, res) => res.json(getFamily()));
+app.get('/api/family', asyncRoute(async (_req, res) => res.json(await getFamily())));
 
 // On app open: is there a real-drill result waiting? (drives routing to result screen)
-app.get('/api/drills/pending-result', (req, res) => {
-  res.json({ pending: takePendingResult(actingUserId(req)) });
-});
+app.get('/api/drills/pending-result', asyncRoute(async (req, res) => {
+  res.json({ pending: await takePendingResult(await actingUserId(req)) });
+}));
 
 // --- In-app practice drill finished (win/lose from the simulated UI). Half XP. ---
-app.post('/api/drills/practice-result', (req, res) => {
+app.post('/api/drills/practice-result', asyncRoute(async (req, res) => {
   const { outcome, channel = 'call' } = req.body || {};
   if (!outcome) return res.status(400).json({ error: 'outcome required' });
   try {
     // Session-derived, never req.body.user — otherwise anyone could write to any account.
-    const { record, user: u } = applyOutcome({ userId: actingUserId(req), outcome, channel, practice: true });
+    const { record, user: u } = await applyOutcome({ userId: await actingUserId(req), outcome, channel, practice: true });
     res.json({ record, user: publicUser(u) });
   } catch (e) {
     return fail(res, 400, 'could not record drill result', e);
   }
-});
+}));
 
 // --- Phone registration: verify ownership + consent via OTP (Twilio Verify / dev bypass). ---
-app.post('/api/verify/start', async (req, res) => {
+app.post('/api/verify/start', asyncRoute(async (req, res) => {
   const phone = (req.body?.phone || '').trim();
   if (!E164.test(phone)) return res.status(400).json({ error: 'phone must be E.164, e.g. +6591234567' });
   if (rateLimited(phone)) return res.status(429).json({ error: 'too many attempts, wait a bit' });
@@ -101,9 +111,9 @@ app.post('/api/verify/start', async (req, res) => {
   } catch (e) {
     return fail(res, verifyErrStatus(e), 'verification service unavailable', e);
   }
-});
+}));
 
-app.post('/api/verify/check', async (req, res) => {
+app.post('/api/verify/check', asyncRoute(async (req, res) => {
   const phone = (req.body?.phone || '').trim();
   const code = (req.body?.code || '').trim();
   const name = req.body?.name;
@@ -117,48 +127,48 @@ app.post('/api/verify/check', async (req, res) => {
   try {
     const approved = await checkVerification(phone, code);
     if (!approved) return res.status(401).json({ ok: false, error: 'incorrect or expired code' });
-    const user = registerVerifiedUser({ phone, name, email: req.body?.email });
+    const user = await registerVerifiedUser({ phone, name, email: req.body?.email });
     // Proving control of the number is what earns a session; the token is the only
     // thing that later authorises firing a real call to it.
-    const token = createSession(user.id);
+    const token = await createSession(user.id);
     res.json({ ok: true, token, userId: user.id, name: user.name });
   } catch (e) {
     return fail(res, verifyErrStatus(e), 'verification service unavailable', e);
   }
-});
+}));
 
 // --- Fire a REAL surprise call now (demo button / scheduler). Gated on consent. ---
 // AUTHENTICATION REQUIRED. This dials a real human. The target is derived from the
 // caller's own session — never from the request body — so nobody can make the platform
 // call a number that isn't theirs. `consentToDrills` records a past consent event; it is
 // NOT an authorisation check and must not be treated as one.
-app.post('/api/drills/fire', async (req, res) => {
-  const userId = sessionUserId(req);
+app.post('/api/drills/fire', asyncRoute(async (req, res) => {
+  const userId = await sessionUserId(req);
   if (!userId) return res.status(401).json({ error: 'sign in (verify your phone) to run a real drill' });
 
-  const user = getUser(userId);
+  const user = await getUser(userId);
   if (!user) return res.status(401).json({ error: 'session no longer valid' });
   if (!user.consentToDrills) return res.status(403).json({ error: 'user has not consented to drills' });
   if (!user.phone) return res.status(400).json({ error: 'no verified phone on file' });
 
   try {
     const call = await fireDrillCall({ toNumber: user.phone });
-    recordDrillFired({ userId, channel: 'call', callId: call.id });
+    await recordDrillFired({ userId, channel: 'call', callId: call.id });
     res.json({ ok: true, callId: call.id, status: call.status });
   } catch (e) {
     return fail(res, 502, 'could not place the drill call', e);
   }
-});
+}));
 
 // --- Real EMAIL drill. Same contract as /fire: AUTHENTICATION REQUIRED, and the
 //     recipient is the session user's OWN stored address — never one from the request.
 //     (The standalone email-webapp took a target address from the body with no auth,
 //     which made it an open phishing relay.) ---
-app.post('/api/drills/email', async (req, res) => {
-  const userId = sessionUserId(req);
+app.post('/api/drills/email', asyncRoute(async (req, res) => {
+  const userId = await sessionUserId(req);
   if (!userId) return res.status(401).json({ error: 'sign in (verify your phone) to run a real drill' });
 
-  const user = getUser(userId);
+  const user = await getUser(userId);
   if (!user) return res.status(401).json({ error: 'session no longer valid' });
   if (!user.consentToDrills) return res.status(403).json({ error: 'user has not consented to drills' });
   if (!user.email) return res.status(400).json({ error: 'no email on file — add one when you register' });
@@ -166,20 +176,20 @@ app.post('/api/drills/email', async (req, res) => {
 
   try {
     await sendDrillEmail({ to: user.email });
-    recordDrillFired({ userId, channel: 'email' });
+    await recordDrillFired({ userId, channel: 'email' });
     res.json({ ok: true });
   } catch (e) {
     return fail(res, 502, 'could not send the drill email', e);
   }
-});
+}));
 
 // --- Real SMS drill. Same contract as /fire and /email: AUTH REQUIRED, and the text
 //     goes to the session user's OWN verified number — never one from the request. ---
-app.post('/api/drills/sms', async (req, res) => {
-  const userId = sessionUserId(req);
+app.post('/api/drills/sms', asyncRoute(async (req, res) => {
+  const userId = await sessionUserId(req);
   if (!userId) return res.status(401).json({ error: 'sign in (verify your phone) to run a real drill' });
 
-  const user = getUser(userId);
+  const user = await getUser(userId);
   if (!user) return res.status(401).json({ error: 'session no longer valid' });
   if (!user.consentToDrills) return res.status(403).json({ error: 'user has not consented to drills' });
   if (!user.phone) return res.status(400).json({ error: 'no verified phone on file' });
@@ -187,18 +197,18 @@ app.post('/api/drills/sms', async (req, res) => {
 
   try {
     const out = await sendDrillSms({ to: user.phone, scenarioId: req.body?.scenario });
-    recordDrillFired({ userId, channel: 'sms' });
+    await recordDrillFired({ userId, channel: 'sms' });
     res.json({ ok: true, scenarioId: out.scenarioId, revealInMs: out.revealInMs });
   } catch (e) {
     return fail(res, 502, 'could not send the drill SMS', e);
   }
-});
+}));
 
 // --- Vapi end-of-call webhook: compute outcome -> XP -> queue result for the user. ---
 // This route is deliberately internet-facing (Vapi must reach it), and it MUTATES a
 // user's training record — so it must prove the request really came from Vapi.
 // Fails closed: no configured secret, no webhook.
-app.post('/api/webhooks/vapi', (req, res) => {
+app.post('/api/webhooks/vapi', asyncRoute(async (req, res) => {
   const secret = process.env.VAPI_WEBHOOK_SECRET;
   if (!secret) return fail(res, 503, 'webhook not configured');
   if (!timingSafeEqualStr(req.get('x-vapi-secret') || '', secret)) {
@@ -210,14 +220,14 @@ app.post('/api/webhooks/vapi', (req, res) => {
 
   // Attribute to whoever actually took the call, by the number Vapi dialled.
   const called = req.body?.message?.customer?.number;
-  const userId = getUserByPhone(called)?.id ?? DEFAULT_USER;
+  const userId = (await getUserByPhone(called))?.id ?? DEFAULT_USER;
   try {
-    const { record } = applyOutcome({ userId, outcome, channel: 'call', practice: false });
+    const { record } = await applyOutcome({ userId, outcome, channel: 'call', practice: false });
     res.json({ ok: true, outcome, result: record.result });
   } catch (e) {
     return fail(res, 400, 'could not record call outcome', e);
   }
-});
+}));
 
 // --- Demo helper: simulate a real-call result WITHOUT live telephony/tunnel, so the
 //     "surprise call -> result appears on next app open" loop is demoable offline.
@@ -225,15 +235,15 @@ app.post('/api/webhooks/vapi', (req, res) => {
 //     enabled — it must not exist in a deployed environment. ---
 if (process.env.ENABLE_DEMO_ROUTES === 'true') {
   console.warn('[demo] /api/drills/simulate enabled — NEVER enable in production.');
-  app.post('/api/drills/simulate', (req, res) => {
+  app.post('/api/drills/simulate', asyncRoute(async (req, res) => {
     const { outcome = 'disengaged' } = req.body || {};
     try {
-      const { record } = applyOutcome({ userId: actingUserId(req), outcome, channel: 'call', practice: false });
+      const { record } = await applyOutcome({ userId: await actingUserId(req), outcome, channel: 'call', practice: false });
       res.json({ ok: true, record });
     } catch (e) {
       return fail(res, 400, 'could not simulate result', e);
     }
-  });
+  }));
 }
 
 // --- Serve the built React app (run `npm run build` first) ---

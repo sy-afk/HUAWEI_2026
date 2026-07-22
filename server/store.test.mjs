@@ -11,9 +11,9 @@ const freshStore = () => fs.rmSync(DATA_FILE, { force: true });
 
 // Regression: user ids used to BE the phone number, which made every id-bearing
 // response and URL carry PII. Ids must now be opaque and the phone kept separate.
-test('registerVerifiedUser gives an opaque id, never the phone number', () => {
+test('registerVerifiedUser gives an opaque id, never the phone number', async () => {
   freshStore();
-  const u = registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
+  const u = await registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
   assert.ok(u.id.startsWith('usr_'), `id should be opaque, got ${u.id}`);
   assert.ok(!u.id.includes('6591234567'), 'the id must not embed the phone number');
   assert.equal(u.phone, '+6591234567', 'the phone is still stored server-side for dialling');
@@ -27,10 +27,10 @@ test('registerVerifiedUser gives an opaque id, never the phone number', () => {
 // Someone re-verifying (new device, cleared storage, lost session) must land back in
 // the SAME account — otherwise they silently lose their XP, streak and history, and the
 // leaderboard fills with duplicates of one person.
-test('re-registering the same phone reuses the account and re-logs consent', () => {
+test('re-registering the same phone reuses the account and re-logs consent', async () => {
   freshStore();
-  const first = registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
-  const again = registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
+  const first = await registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
+  const again = await registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
 
   assert.equal(again.id, first.id, 'same number must map to the same account');
 
@@ -46,19 +46,19 @@ test('re-registering the same phone reuses the account and re-logs consent', () 
 
 // Everything that places a real call or sends a real message trusts this lookup. A token
 // that resolves when it shouldn't is an account takeover; one that is guessable is worse.
-test('a session token resolves to its user, and nothing else does', () => {
+test('a session token resolves to its user, and nothing else does', async () => {
   freshStore();
-  const u = registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
-  const token = createSession(u.id);
+  const u = await registerVerifiedUser({ phone: '+6591234567', name: 'Judge' });
+  const token = await createSession(u.id);
 
-  assert.equal(getUserIdByToken(token), u.id);
-  assert.equal(getUserIdByToken('not-a-real-token'), null, 'unknown token must not resolve');
-  assert.equal(getUserIdByToken(''), null, 'empty token must not resolve');
-  assert.equal(getUserIdByToken(undefined), null, 'missing token must not resolve');
+  assert.equal(await getUserIdByToken(token), u.id);
+  assert.equal(await getUserIdByToken('not-a-real-token'), null, 'unknown token must not resolve');
+  assert.equal(await getUserIdByToken(''), null, 'empty token must not resolve');
+  assert.equal(await getUserIdByToken(undefined), null, 'missing token must not resolve');
 
   assert.ok(token.length >= 32, `token too short to be unguessable: ${token.length} chars`);
   assert.notEqual(token, u.id, 'the token must not be derivable from the user id');
-  assert.notEqual(createSession(u.id), token, 'each session gets a distinct token');
+  assert.notEqual(await createSession(u.id), token, 'each session gets a distinct token');
   freshStore();
 });
 
