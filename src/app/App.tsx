@@ -3952,6 +3952,7 @@ function RegisterScreen({ onDone, onBack }: { onDone: () => void; onBack: () => 
   const [step, setStep] = useState<"phone" | "code">("phone");
   const [phone, setPhone] = useState("+65");
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [msg, setMsg] = useState("");
   const [devCode, setDevCode] = useState<string | null>(null);
@@ -3981,7 +3982,7 @@ function RegisterScreen({ onDone, onBack }: { onDone: () => void; onBack: () => 
   async function verify() {
     setBusy(true); setMsg("");
     try {
-      const r = await fetch("/api/verify/check", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone, code, name }) });
+      const r = await fetch("/api/verify/check", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone, code, name, email: email.trim() || undefined }) });
       const d = await r.json();
       if (!r.ok || !d.ok) { setMsg(d.error || "Incorrect code"); setBusy(false); return; }
       // Store the server-issued session token — this is what authorises real drills.
@@ -4006,6 +4007,7 @@ function RegisterScreen({ onDone, onBack }: { onDone: () => void; onBack: () => 
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>{label("YOUR NAME (OPTIONAL)")}<input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="JUDGE" /></div>
               <div>{label("PHONE NUMBER")}<input style={inputStyle} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+6591234567" inputMode="tel" /></div>
+              <div>{label("EMAIL (OPTIONAL — FOR EMAIL DRILLS)")}<input style={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" inputMode="email" autoCapitalize="none" /></div>
               <PixelBtn onClick={sendCode} color="#4ecdc4" size="lg" full disabled={busy}>{busy ? "SENDING..." : "[ SEND CODE ]"}</PixelBtn>
             </div>
           ) : (

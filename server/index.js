@@ -46,6 +46,7 @@ function timingSafeEqualStr(a, b) {
 }
 
 const E164 = /^\+[1-9]\d{6,14}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, '..', 'dist');
@@ -103,6 +104,12 @@ app.post('/api/verify/check', async (req, res) => {
   const code = (req.body?.code || '').trim();
   const name = req.body?.name;
   if (!E164.test(phone) || !code) return res.status(400).json({ error: 'phone and code required' });
+  // Email is optional, but if supplied it must be well-formed — it becomes a real
+  // send target, so don't store junk the client happened to submit.
+  const email = req.body?.email;
+  if (email !== undefined && email !== null && email !== '' && !EMAIL_RE.test(String(email).trim())) {
+    return res.status(400).json({ error: 'email is not a valid address' });
+  }
   try {
     const approved = await checkVerification(phone, code);
     if (!approved) return res.status(401).json({ ok: false, error: 'incorrect or expired code' });
