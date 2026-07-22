@@ -114,6 +114,19 @@ test('POST /api/verify/start rejects a non-E.164 phone', async () => {
   assert.equal((await post('/api/verify/start', { phone: 'not-a-number' })).status, 400);
 });
 
+// The email supplied at registration becomes a real send target, so it is validated
+// before the OTP is even checked — junk must never reach the store.
+test('POST /api/verify/check rejects a malformed email before anything else', async () => {
+  for (const bad of ['not-an-email', 'missing@tld', 'two@@at.com', 'has space@x.com']) {
+    const res = await post('/api/verify/check', { phone: '+6591234567', code: '000000', email: bad });
+    assert.equal(res.status, 400, `"${bad}" should be rejected as malformed`);
+  }
+  // An omitted email is fine — it is optional. This one gets past validation and is
+  // refused later for a different reason (verification disabled), never 400.
+  const ok = await post('/api/verify/check', { phone: '+6591234567', code: '000000' });
+  assert.notEqual(ok.status, 400, 'omitting email must not be a validation error');
+});
+
 // ─── Anonymous practice still works (no regression for the demo) ──────────
 test('anonymous practice drills still score against the demo account', async () => {
   const res = await post('/api/drills/practice-result', { outcome: 'reported' });
