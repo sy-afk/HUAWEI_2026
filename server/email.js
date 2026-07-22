@@ -15,8 +15,13 @@ export class EmailUnavailable extends Error {
   }
 }
 
+// GOOGLE_SCRIPT_SECRET is required, not optional: the Apps Script web app is deployed
+// with access "Anyone", so the shared secret is the only thing standing between that
+// public URL and an open mail relay. No secret -> we refuse to send at all.
 export function emailConfigured() {
-  return Boolean(process.env.OPENAI_API_KEY && process.env.GOOGLE_SCRIPT_URL);
+  return Boolean(
+    process.env.OPENAI_API_KEY && process.env.GOOGLE_SCRIPT_URL && process.env.GOOGLE_SCRIPT_SECRET,
+  );
 }
 
 const SCAM_TOPICS = [
@@ -59,7 +64,9 @@ function buildPrompt(revealUrl, reportUrl) {
  */
 export async function sendDrillEmail({ to }) {
   if (!emailConfigured()) {
-    throw new EmailUnavailable('OPENAI_API_KEY and GOOGLE_SCRIPT_URL must be set to send drill emails');
+    throw new EmailUnavailable(
+      'OPENAI_API_KEY, GOOGLE_SCRIPT_URL and GOOGLE_SCRIPT_SECRET must be set to send drill emails',
+    );
   }
   const base = (process.env.PUBLIC_URL || '').replace(/\/+$/, '');
   const revealUrl = base + '/drill-reveal';
@@ -86,7 +93,12 @@ export async function sendDrillEmail({ to }) {
   const send = await fetch(process.env.GOOGLE_SCRIPT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: to, subject: 'Immediate Action Required', html }),
+    body: JSON.stringify({
+      secret: process.env.GOOGLE_SCRIPT_SECRET,
+      email: to,
+      subject: 'Immediate Action Required',
+      html,
+    }),
   });
   const sendData = await send.json().catch(() => ({}));
   if (!send.ok || sendData?.success === false) {
