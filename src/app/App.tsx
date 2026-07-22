@@ -3999,14 +3999,15 @@ const TOUR_STEPS: TourStep[] = [
   },
 ];
 
-function SpeechBubble({ step, index, total, onNext, onSkip, onBack, style }: {
+function SpeechBubble({ step, index, total, onNext, onSkip, onBack, style, innerRef }: {
   step: TourStep; index: number; total: number;
   onNext: () => void; onSkip: () => void; onBack: () => void;
   style?: React.CSSProperties;
+  innerRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const last = index === total - 1;
   return (
-    <div style={{ position: "fixed", zIndex: 10001, width: 300, ...style }}>
+    <div ref={innerRef} style={{ position: "fixed", zIndex: 10001, width: 300, ...style }}>
       <div style={{ display: "flex", alignItems: "flex-end", gap: 8, marginBottom: -4 }}>
         <PixelMascot size={44} animate />
         <div style={{ fontFamily: "'Press Start 2P',monospace", fontSize: 9, color: step.accent, paddingBottom: 10 }}>
@@ -4039,7 +4040,15 @@ function SpeechBubble({ step, index, total, onNext, onSkip, onBack, style }: {
 function TourOverlay({ onDone }: { onDone: () => void }) {
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const [bubbleH, setBubbleH] = useState(250); // estimate until measured
+  const bubbleRef = useRef<HTMLDivElement>(null);
   const step = TOUR_STEPS[index];
+
+  // Measure the bubble so placement can react to its real height, not a guess.
+  useEffect(() => {
+    const h = bubbleRef.current?.getBoundingClientRect().height;
+    if (h && Math.abs(h - bubbleH) > 2) setBubbleH(h);
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -4050,12 +4059,14 @@ function TourOverlay({ onDone }: { onDone: () => void }) {
       if (!el) return setRect(null); // target missing -> fall back to a centred bubble
       setRect(el.getBoundingClientRect());
     };
-    // Scroll the target into view first, then measure once it has settled.
+    // Scroll the target into view, then measure. Deliberately an INSTANT scroll: with
+    // smooth scrolling the measurement ran mid-animation and the spotlight landed where
+    // the element used to be.
     if (step.target) {
       const el = document.querySelector(`[data-tour="${step.target}"]`);
-      el?.scrollIntoView({ block: "center", behavior: "smooth" });
+      el?.scrollIntoView({ block: "center", behavior: "auto" });
     }
-    const t = setTimeout(measure, step.target ? 380 : 0);
+    const t = setTimeout(measure, step.target ? 90 : 0);
     window.addEventListener("resize", measure);
     return () => { cancelled = true; clearTimeout(t); window.removeEventListener("resize", measure); };
   }, [index, step.target]);
@@ -4063,16 +4074,22 @@ function TourOverlay({ onDone }: { onDone: () => void }) {
   const next = () => (index === TOUR_STEPS.length - 1 ? onDone() : setIndex(index + 1));
   const pad = 6;
 
-  // Bubble goes below the highlight when there is room, otherwise above.
+  // Bubble placement: below the target if it fits, else above, else clamped into view.
+  // The last case is real — the family-rooms target is taller than the phone, and an
+  // un-clamped "above" pushed the bubble (and Pip) off the top of the screen entirely.
   let bubbleStyle: React.CSSProperties = {
     left: "50%", top: "50%", transform: "translate(-50%,-50%)",
   };
   if (rect) {
-    const below = rect.bottom + 210 < window.innerHeight;
+    const vh = window.innerHeight;
+    const gap = pad + 14;
+    let top;
+    if (rect.bottom + gap + bubbleH <= vh - 8) top = rect.bottom + gap;
+    else if (rect.top - gap - bubbleH >= 8) top = rect.top - gap - bubbleH;
+    else top = 8; // target fills the screen — pin it rather than let it drift off
     bubbleStyle = {
-      left: Math.min(Math.max(rect.left + rect.width / 2 - 150, 12), window.innerWidth - 312),
-      top: below ? rect.bottom + pad + 14 : undefined,
-      bottom: below ? undefined : window.innerHeight - rect.top + pad + 14,
+      left: Math.min(Math.max(rect.left + rect.width / 2 - 150, 12), Math.max(12, window.innerWidth - 312)),
+      top: Math.max(8, Math.min(top, vh - bubbleH - 8)),
     };
   }
 
@@ -4097,6 +4114,7 @@ function TourOverlay({ onDone }: { onDone: () => void }) {
         step={step} index={index} total={TOUR_STEPS.length}
         onNext={next} onBack={() => setIndex(Math.max(0, index - 1))} onSkip={onDone}
         style={bubbleStyle}
+        innerRef={bubbleRef}
       />
     </>
   );
