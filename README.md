@@ -6,6 +6,10 @@ debrief.
 
 Built for Huawei Tech4City 2026.
 
+#### Video Demo Links
+Prototype Demo: https://youtu.be/SPY1owssKW4?is=9IT_UF_cfR1TmeNC
+Telebot Demo: https://youtu.be/rpA3lZHmpmQ?is=-rdivRcIfnlkhkrs
+
 ## What is implemented
 
 | Channel | Live path |
