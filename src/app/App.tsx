@@ -1,3 +1,94 @@
+// Import types
+import type { Screen, Tab } from "./types/navigation";
+import type { AvatarConfig, PlayerProfile, ContactInfo, NameUpdateResult } from "./types/profile";
+import type { AppSettings, AccessibilityPrefs } from "./types/settings";
+import type {
+  CallOutcome,
+  ConversationLine,
+  DrillFlag,
+  DrillResultRecord,
+  DrillType,
+  EmailOutcome,
+  FamilyClue,
+  FamilyOutcome,
+  FamilyScenario,
+  Highlight,
+  NeutralResultNotice,
+  RealDrillCompletion,
+  SmsOutcome,
+} from "./types/drills";
+import type { FamilyMember } from "./types/family";
+import type { ChatMsg } from "./types/chat";
+import type { CoinTxReason, CoinTx, HomeInventory, RewardClaims } from "./types/economy";
+import type { FurnitureItem, ShopItem } from "./types/store";
+import type { Notification, NotificationKind } from "./types/notifications";
+
+// Import data
+import { SAFETY_TIPS } from "./data/safetyTips";
+import { ACHIEVEMENTS } from "./data/achievements";
+import { HALL_OF_FAME } from "./data/leaderboard";
+import { RED_FLAGS, LIVE_CALL_FLAGS, SMS_FLAGS, EMAIL_FLAGS, FLAG_MAP } from "./data/scamFlags";
+import { FAMILY_MEMBERS, MEMBER_MAP, PIXI_MEMBER, FAMILY_NAME_TO_ID } from "./data/familyMembers";
+import { FURNITURE_STORE } from "./data/furniture";
+import { SHOP_CATALOGUE } from "./data/shopCatalogue";
+import { FAMILY_SCENARIOS } from "./data/familyScenarios";
+
+// Import utils
+import { createAttemptId, makeNotifId, makeTxId } from "./utils/ids";
+import { localDateKey, localWeekKey, formatNotifTimestamp } from "./utils/date";
+import { DRILL_DAY_LABELS, DRILL_DAY_NAMES, drillWindowStatus } from "./utils/drillSchedule";
+
+// Import services
+import { TOKEN_KEY, sessionToken, setSessionToken, notifySessionExpired } from "./services/session";
+import { authHeaders, handleApiAuth, apiGet, reportOutcome, updateVerifiedNameRequest } from "./services/api";
+import { 
+  PROFILE_KEY, DEFAULT_PROFILE, loadProfile, saveProfile,
+  CONTACT_KEY, DEFAULT_CONTACT, loadContact, saveContact,
+  loadAccessibility, saveAccessibility
+} from "./services/storage";
+
+// Import Icons
+import { 
+  IconAttachment, 
+  IconBadge, IconBell, IconBulb,
+  IconChat, IconCheck, IconCoin, 
+  IconEnvelope, IconEyeInspect,
+  IconGear, 
+  IconHouse, IconPerson, IconPhone, 
+  IconShield, IconSpeaker, IconStore,
+  IconTrophy,
+  IconWarning, 
+  IconX 
+} from "./components/icons";
+
+// Import avatars
+import { FamilyChar, PixelAvatar, PixelMascot, PixiAvatar } from "./components/avatars";
+
+// Import furniture
+import { FurnitureIcon, PurchasedRoomFurniture, ShopFurnitureArt, WallpaperSwatch } from "./components/furniture";
+
+// Import UI
+import { 
+  AnnotatedMessage,
+  Blink, 
+  ClueTooltip, FlagTooltip,
+  InspectableLink,
+  PixelBtn, PixelPanel, PixelRadio, PixelToggle, 
+  ScamReasonSection, SenderInspectPanel,
+  XPBar 
+} from "./components/ui";
+
+// Import layout
+import {
+  AppHeader,
+  BottomNav,
+  PhoneFrame,
+  Scanlines,
+  Stars,
+  SubPageHeader,
+} from "./components/layout";
+
+// default imports
 import { useState, useEffect, useRef, useMemo } from "react";
 import { unlock, playSfx, setMuted, setMusicEnabled, isMuted } from "./audio";
 
@@ -8,28 +99,6 @@ import { unlock, playSfx, setMuted, setMusicEnabled, isMuted } from "./audio";
 // we are from this token — the client never asserts a user id, because a drill places a
 // real phone call and a client-supplied id would let anyone target anyone.
 // Anonymous visitors simply have no token and act as the shared demo account.
-const TOKEN_KEY = "safespace_session_token";
-function sessionToken(): string | null {
-  try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
-}
-function setSessionToken(token: string | null) {
-  try {
-    if (token) localStorage.setItem(TOKEN_KEY, token);
-    else localStorage.removeItem(TOKEN_KEY);
-  } catch { /* private mode: stay anonymous */ }
-}
-function authHeaders(): Record<string, string> {
-  const t = sessionToken();
-  return t ? { authorization: `Bearer ${t}` } : {};
-}
-
-function handleApiAuth(response: Response): boolean {
-  if (response.status !== 401 || !sessionToken()) return false;
-  setSessionToken(null);
-  try { window.dispatchEvent(new Event("safespace-session-expired")); } catch { /* SSR/tests */ }
-  return true;
-}
-
 // First-run tutorial. Shown once, then replayable from Home — people forget, and a
 // tutorial you can't get back to is worse than none.
 const TUTORIAL_KEY = "safespace_tutorial_seen";
@@ -43,137 +112,16 @@ function markTutorialSeen() {
 // Player profile — name + avatar customisation. Persisted locally (this is cosmetic
 // and never leaves the device), so it survives reloads without a backend round trip.
 // Defaults reproduce the original hardcoded look.
-export interface AvatarConfig { color: string; glow: string; hat: string; eyes: string; outfit: string; }
-export interface PlayerProfile { name: string; avatar: AvatarConfig; }
-const PROFILE_KEY = "safespace_profile";
-const DEFAULT_PROFILE: PlayerProfile = {
-  name: "PLAYER_001",
-  avatar: { color: "#4ecdc4", glow: "#00ff88", hat: "None", eyes: "Default", outfit: "Standard" },
-};
-function loadProfile(): PlayerProfile {
-  try {
-    const raw = localStorage.getItem(PROFILE_KEY);
-    if (!raw) return DEFAULT_PROFILE;
-    const p = JSON.parse(raw);
-    // Merge over defaults so an older/partial stored shape can't leave a field undefined.
-    return { name: p.name || DEFAULT_PROFILE.name, avatar: { ...DEFAULT_PROFILE.avatar, ...(p.avatar || {}) } };
-  } catch { return DEFAULT_PROFILE; }
-}
-function saveProfile(p: PlayerProfile) {
-  try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch { /* private mode: not persisted */ }
-}
 
 // Contact details for real drills — name / phone / email. Saved locally so the register
 // screen can pre-fill them and the user doesn't retype on every visit. Kept separate
 // from the session token: saving your details is not the same as verifying ownership.
-const CONTACT_KEY = "safespace_contact";
-export interface ContactInfo { name: string; phone: string; email: string; }
-const DEFAULT_CONTACT: ContactInfo = { name: "", phone: "+65", email: "" };
-function loadContact(): ContactInfo {
-  try {
-    const raw = localStorage.getItem(CONTACT_KEY);
-    if (!raw) return DEFAULT_CONTACT;
-    const c = JSON.parse(raw);
-    return { name: c.name || "", phone: c.phone || "+65", email: c.email || "" };
-  } catch { return DEFAULT_CONTACT; }
-}
-function saveContact(c: ContactInfo) {
-  try { localStorage.setItem(CONTACT_KEY, JSON.stringify(c)); } catch { /* private mode: not persisted */ }
-}
 
-async function apiGet<T>(path: string): Promise<T | null> {
-  try {
-    const r = await fetch(path, { headers: authHeaders() });
-    handleApiAuth(r);
-    return r.ok ? ((await r.json()) as T) : null;
-  } catch {
-    return null;
-  }
-}
+// createAttemptId
 
-function createAttemptId(prefix = "attempt"): string {
-  try {
-    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-      return `${prefix}_${crypto.randomUUID()}`;
-    }
-  } catch { /* fall through to a non-cryptographic UI id */ }
-  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-}
 
-async function reportOutcome(outcome: string, channel: DrillType, attemptId: string): Promise<number | null> {
-  try {
-    const r = await fetch("/api/drills/practice-result", {
-      method: "POST",
-      headers: { "content-type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ outcome, channel, attemptId, idempotencyKey: attemptId }),
-    });
-    handleApiAuth(r);
-    if (!r.ok) return null;
-    const data = await r.json();
-    return data?.record?.xpGained ?? data?.xpGained ?? null;
-  } catch {
-    return null;
-  }
-}
 
 // ── Types ──────────────────────────────────────────────────────────────────
-type Screen =
-  | "title"
-  | "home"
-  | "drill-select"
-  | "incoming"
-  | "call"
-  | "result-win"
-  | "result-lose"
-  | "leaderboard"
-  | "store"
-  | "profile"
-  | "register"
-  | "sms-inbox"
-  | "sms-thread"
-  | "sms-browser"
-  | "email-inbox"
-  | "email-detail"
-  | "email-browser"
-  | "email-download"
-  | "family-drill-intro"
-  | "family-round"
-  | "family-answer"
-  | "family-summary"
-  | "settings"
-  | "account-settings"
-  | "privacy-settings"
-  | "accessibility-settings"
-  | "about-settings"
-  | "profile-edit"
-  | "avatar-customisation"
-  | "customize"
-  | "family-chat"
-  | "payday"
-  | "notifications"
-  | "notification-detail"
-  | "realistic-phone-intro"
-  | "realistic-sms-intro"
-  | "telegram-intro"
-  | "realistic-email-intro";
-
-type Tab = "home" | "leaderboard" | "store" | "profile";
-
-interface AppSettings {
-  drillFrequency: string;
-  familyDrillEnabled: boolean;
-  notificationsEnabled: boolean;
-  difficulty: string;
-  includeSafeMessages: boolean;
-  autoExplain: boolean;
-  requireLinkInspection: boolean;
-  realismMode: boolean;
-  // Drill schedule window — when real (surprise) drills are allowed to fire.
-  // drillDays is indexed by JS getDay(): 0 = Sunday … 6 = Saturday.
-  drillDays: boolean[];
-  drillStartHour: number; // 0–23, inclusive
-  drillEndHour: number;   // 0–23, exclusive
-}
 
 const SETTINGS_KEY = "safespace_settings";
 const DEFAULT_SETTINGS: AppSettings = {
@@ -205,214 +153,32 @@ function saveSettings(s: AppSettings) {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch { /* private mode: not persisted */ }
 }
 
-type AccessibilityPrefs = {
-  reduceMotion: boolean;
-  largerText: boolean;
-  highContrast: boolean;
-  disableScanlines: boolean;
-};
 
-const ACCESSIBILITY_KEY = "safespace_accessibility_v1";
-const DEFAULT_ACCESSIBILITY: AccessibilityPrefs = {
-  reduceMotion: false,
-  largerText: false,
-  highContrast: false,
-  disableScanlines: false,
-};
 
-function loadAccessibility(): AccessibilityPrefs {
-  try {
-    const raw = localStorage.getItem(ACCESSIBILITY_KEY);
-    return raw ? { ...DEFAULT_ACCESSIBILITY, ...JSON.parse(raw) } : DEFAULT_ACCESSIBILITY;
-  } catch {
-    return DEFAULT_ACCESSIBILITY;
-  }
-}
-
-function saveAccessibility(prefs: AccessibilityPrefs) {
-  try { localStorage.setItem(ACCESSIBILITY_KEY, JSON.stringify(prefs)); } catch { /* private mode */ }
-}
-
-const DRILL_DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
-const DRILL_DAY_NAMES = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
 // Whether a real (surprise) drill is allowed to fire at `now`, given the schedule window.
 // Returns whether the window is open and, if not, a short label for when it next opens.
-function drillWindowStatus(s: AppSettings, now: Date = new Date()): { open: boolean; nextLabel: string } {
-  const hhmm = (n: number) => `${String(n).padStart(2, "0")}:00`;
-  const anyDay = s.drillDays.some(Boolean);
-  const validRange = s.drillEndHour > s.drillStartHour;
-  if (!anyDay || !validRange) return { open: false, nextLabel: "never" };
-  const hour = now.getHours();
-  if (s.drillDays[now.getDay()] && hour >= s.drillStartHour && hour < s.drillEndHour) {
-    return { open: true, nextLabel: "" };
-  }
-  for (let i = 0; i < 8; i++) {
-    const d = new Date(now);
-    d.setDate(now.getDate() + i);
-    if (!s.drillDays[d.getDay()]) continue;
-    if (i === 0 && hour >= s.drillStartHour) continue; // today's window has already passed
-    const dayLabel = i === 0 ? "TODAY" : i === 1 ? "TMR" : DRILL_DAY_NAMES[d.getDay()];
-    return { open: false, nextLabel: `${dayLabel} ${hhmm(s.drillStartHour)}` };
-  }
-  return { open: false, nextLabel: "never" };
-}
-
-interface FamilyClue {
-  label: string;
-  text: string;
-  explanation: string;
-}
-
-interface FamilyScenario {
-  id: number;
-  targetMember: string;
-  type: "sms" | "email" | "notification";
-  isScam: boolean;
-  sender: string;
-  senderEmail?: string;
-  senderDomain?: string;
-  senderWarning?: string;
-  subject?: string;
-  timestamp: string;
-  message: string;
-  invoiceDetails?: { amount: string; noteFromSeller: string; invoiceNumber: string };
-  buttonLabel?: string;
-  buttonUrl?: string;
-  correctAction: string;
-  actions: string[];
-  clues: FamilyClue[];
-  explanation: string;
-}
-type DrillType = "call" | "sms" | "email";
-type SmsOutcome = "reported" | "asked-family" | "clicked-link" | "closed-page";
-type EmailOutcome = "reported" | "asked-family" | "submitted-details" | "opened-attachment" | "cancelled-download";
-type CallOutcome =
-  | "hung_up"
-  | "disengaged"
-  | "caught_flag"
-  | "complied"
-  | "shared_data"
-  | "distress_offramp"
-  | "no_answer"
-  | "voicemail"
-  | "unscored";
-
-type RealDrillCompletion = { ok: boolean; error?: string };
-type NameUpdateResult = { ok: boolean; name?: string; error?: string };
-type DrillResultRecord = {
-  id?: string;
-  drillId?: string;
-  attemptId?: string;
-  outcome?: string | null;
-  result?: string;
-  screen?: Screen | null;
-  xpGained?: number;
-  channel?: DrillType;
-  unscoredReason?: string;
-};
-type NeutralResultNotice = { id: string; message: string };
+// drillWindowStatus
 
 type LeaderboardRow = { rank: number; name: string; score: number; wins?: number; area?: string };
 
-type FurnitureItem = { id: string; name: string; sellValue: number; memberId: string };
-type ChatMsg = {
-  memberId: string;
-  text: string;
-  time: string;
-  isPlayer?: boolean;
-  isPixi?: boolean;
-  incidentRef?: {
-    memberId: string;
-    kind: "drill-win" | "drill-lose" | "family-round" | "payday";
-  };
-};
 
 // ── Phase 2: Coin ledger types ─────────────────────────────────────────────
-type CoinTxReason =
-  | "drill-win-call" | "drill-win-sms" | "drill-win-email"
-  | "drill-lose-call" | "drill-lose-sms" | "drill-lose-email"
-  | "family-drill-correct" | "family-drill-wrong"
-  | "sell-furniture" | "buy-furniture"
-  | "daily-reward"
-  | "payday-base" | "payday-bonus";
-
-type CoinTx = {
-  id: string;
-  memberId: string;
-  delta: number;
-  reason: CoinTxReason;
-  label: string;
-  timestamp: number;
-};
 
 const LEDGER_CAP = 50;
 const DAILY_REWARD_AMOUNT = 10;
 
 // ── Phase 6: Notification types ────────────────────────────────────────────
-type NotificationKind =
-  | "drill-win-call" | "drill-win-sms" | "drill-win-email"
-  | "drill-lose-call" | "drill-lose-sms" | "drill-lose-email"
-  | "family-drill-complete"
-  | "payday"
-  | "daily-reward";
-
-type Notification = {
-  id: string;
-  kind: NotificationKind;
-  memberId: string; // "family" for household-wide events
-  title: string;
-  body: string;
-  timestamp: number;
-  read: boolean;
-};
 
 const NOTIFICATIONS_CAP = 30;
 
-function makeNotifId() {
-  return "n_" + Math.random().toString(36).slice(2, 10);
-}
+// makeNotifId
 
-function makeTxId() {
-  return Math.random().toString(36).slice(2, 10);
-}
+// makeTxId
 
 // ─────────────────────────────────────────────────────────────────────────
 // PIXEL ICONS
 // ─────────────────────────────────────────────────────────────────────────
-
-function IconCheck({ size = 16, color = "#00ff88" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 8 8" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={1} y={4} width={1} height={1} fill={color} />
-      <rect x={2} y={5} width={1} height={1} fill={color} />
-      <rect x={3} y={6} width={1} height={1} fill={color} />
-      <rect x={4} y={5} width={1} height={1} fill={color} />
-      <rect x={5} y={4} width={1} height={1} fill={color} />
-      <rect x={6} y={3} width={1} height={1} fill={color} />
-      <rect x={7} y={2} width={1} height={1} fill={color} />
-    </svg>
-  );
-}
-
-function IconX({ size = 16, color = "#ff2d55" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 8 8" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={1} y={1} width={1} height={1} fill={color} />
-      <rect x={2} y={2} width={1} height={1} fill={color} />
-      <rect x={3} y={3} width={1} height={1} fill={color} />
-      <rect x={4} y={4} width={1} height={1} fill={color} />
-      <rect x={5} y={5} width={1} height={1} fill={color} />
-      <rect x={6} y={6} width={1} height={1} fill={color} />
-      <rect x={6} y={1} width={1} height={1} fill={color} />
-      <rect x={5} y={2} width={1} height={1} fill={color} />
-      <rect x={3} y={4} width={1} height={1} fill={color} />
-      <rect x={2} y={5} width={1} height={1} fill={color} />
-      <rect x={1} y={6} width={1} height={1} fill={color} />
-    </svg>
-  );
-}
-
 function IconFlame({ size = 24, color = "#ff6b35" }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 10 12" style={{ imageRendering: "pixelated", display: "block" }}>
@@ -425,26 +191,6 @@ function IconFlame({ size = 24, color = "#ff6b35" }: { size?: number; color?: st
       <rect x={4} y={0} width={2} height={2} fill={color} />
       <rect x={3} y={7} width={4} height={2} fill="#ffe66d" />
       <rect x={4} y={5} width={2} height={3} fill="#ffe66d" />
-    </svg>
-  );
-}
-
-function IconShield({ size = 24, color = "#00ff88" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 12 14" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={2} y={0} width={8} height={2} fill={color} />
-      <rect x={1} y={1} width={10} height={2} fill={color} />
-      <rect x={0} y={2} width={12} height={6} fill={color} />
-      <rect x={1} y={8} width={10} height={2} fill={color} />
-      <rect x={2} y={9} width={8} height={2} fill={color} />
-      <rect x={4} y={11} width={4} height={2} fill={color} />
-      <rect x={5} y={12} width={2} height={2} fill={color} />
-      <rect x={3} y={5} width={1} height={1} fill="#0a0e1a" />
-      <rect x={4} y={6} width={1} height={1} fill="#0a0e1a" />
-      <rect x={5} y={7} width={1} height={1} fill="#0a0e1a" />
-      <rect x={6} y={6} width={1} height={1} fill="#0a0e1a" />
-      <rect x={7} y={5} width={1} height={1} fill="#0a0e1a" />
-      <rect x={8} y={4} width={1} height={1} fill="#0a0e1a" />
     </svg>
   );
 }
@@ -467,20 +213,7 @@ function IconSkull({ size = 24, color = "#ff2d55" }: { size?: number; color?: st
   );
 }
 
-function IconTrophy({ size = 24, color = "#ffe66d" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 12 14" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={2} y={0} width={8} height={6} fill={color} />
-      <rect x={1} y={1} width={10} height={4} fill={color} />
-      <rect x={0} y={1} width={2} height={3} fill={color} />
-      <rect x={10} y={1} width={2} height={3} fill={color} />
-      <rect x={4} y={6} width={4} height={3} fill={color} />
-      <rect x={2} y={9} width={8} height={2} fill={color} />
-      <rect x={1} y={11} width={10} height={2} fill={color} />
-      <rect x={3} y={1} width={1} height={3} fill="#ffffff" opacity="0.4" />
-    </svg>
-  );
-}
+
 
 function IconStar({ size = 16, color = "#ffe66d" }: { size?: number; color?: string }) {
   return (
@@ -515,18 +248,7 @@ function IconMedal({ rank = 1, size = 20 }: { rank: number; size?: number }) {
   );
 }
 
-function IconPerson({ size = 20, color = "#4ecdc4" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 10 10" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={3} y={0} width={4} height={4} fill={color} />
-      <rect x={2} y={1} width={6} height={3} fill={color} />
-      <rect x={2} y={4} width={6} height={4} fill={color} />
-      <rect x={1} y={5} width={8} height={2} fill={color} />
-      <rect x={2} y={8} width={2} height={2} fill={color} />
-      <rect x={6} y={8} width={2} height={2} fill={color} />
-    </svg>
-  );
-}
+
 
 function IconLock({ size = 16, color = "#6b8ba4" }: { size?: number; color?: string }) {
   return (
@@ -541,113 +263,7 @@ function IconLock({ size = 16, color = "#6b8ba4" }: { size?: number; color?: str
   );
 }
 
-function IconBell({ size = 20, color = "#ffe66d" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 10 12" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={4} y={0} width={2} height={1} fill={color} />
-      <rect x={3} y={1} width={4} height={2} fill={color} />
-      <rect x={1} y={3} width={8} height={5} fill={color} />
-      <rect x={0} y={5} width={10} height={3} fill={color} />
-      <rect x={0} y={8} width={10} height={1} fill={color} />
-      <rect x={3} y={9} width={4} height={2} fill={color} />
-      <rect x={4} y={11} width={2} height={1} fill={color} />
-    </svg>
-  );
-}
 
-function IconWarning({ size = 16, color = "#ff6b35" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 10 10" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={4} y={0} width={2} height={1} fill={color} />
-      <rect x={3} y={1} width={4} height={1} fill={color} />
-      <rect x={2} y={2} width={6} height={1} fill={color} />
-      <rect x={1} y={3} width={8} height={1} fill={color} />
-      <rect x={0} y={4} width={10} height={5} fill={color} />
-      <rect x={4} y={5} width={2} height={2} fill="#0a0e1a" />
-      <rect x={4} y={8} width={2} height={1} fill="#0a0e1a" />
-    </svg>
-  );
-}
-
-function IconBulb({ size = 16, color = "#ffe66d" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 8 10" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={2} y={0} width={4} height={1} fill={color} />
-      <rect x={1} y={1} width={6} height={4} fill={color} />
-      <rect x={0} y={2} width={8} height={3} fill={color} />
-      <rect x={1} y={5} width={6} height={2} fill={color} />
-      <rect x={2} y={7} width={4} height={2} fill={color} />
-      <rect x={3} y={9} width={2} height={1} fill={color} />
-    </svg>
-  );
-}
-
-function IconPhone({ size = 20, color = "#4ecdc4" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 10 10" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={0} y={0} width={4} height={4} fill={color} />
-      <rect x={1} y={1} width={2} height={2} fill="#0a0e1a" />
-      <rect x={3} y={2} width={7} height={2} fill={color} />
-      <rect x={7} y={2} width={3} height={8} fill={color} />
-      <rect x={6} y={7} width={2} height={3} fill={color} />
-      <rect x={4} y={8} width={4} height={2} fill={color} />
-    </svg>
-  );
-}
-
-function IconHouse({ size = 20, color = "#00ff88" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 12 12" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={5} y={0} width={2} height={1} fill={color} />
-      <rect x={4} y={1} width={4} height={1} fill={color} />
-      <rect x={3} y={2} width={6} height={1} fill={color} />
-      <rect x={2} y={3} width={8} height={1} fill={color} />
-      <rect x={1} y={4} width={10} height={1} fill={color} />
-      <rect x={1} y={5} width={10} height={7} fill={color} />
-      <rect x={4} y={8} width={4} height={4} fill="#0a0e1a" />
-      <rect x={2} y={6} width={2} height={2} fill="#0a0e1a" />
-      <rect x={8} y={6} width={2} height={2} fill="#0a0e1a" />
-    </svg>
-  );
-}
-
-function IconBadge({ size = 24, color = "#4ecdc4" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 12 12" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={3} y={0} width={6} height={2} fill={color} />
-      <rect x={1} y={1} width={10} height={2} fill={color} />
-      <rect x={0} y={2} width={12} height={6} fill={color} />
-      <rect x={1} y={8} width={10} height={2} fill={color} />
-      <rect x={3} y={9} width={6} height={2} fill={color} />
-      <rect x={5} y={3} width={2} height={1} fill="#0a0e1a" />
-      <rect x={4} y={4} width={4} height={1} fill="#0a0e1a" />
-      <rect x={3} y={5} width={6} height={1} fill="#0a0e1a" />
-      <rect x={4} y={6} width={4} height={1} fill="#0a0e1a" />
-      <rect x={5} y={7} width={2} height={1} fill="#0a0e1a" />
-    </svg>
-  );
-}
-
-function IconEnvelope({ size = 20, color = "#4ecdc4" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 12 10" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={0} y={0} width={12} height={10} fill={color} />
-      <rect x={1} y={1} width={10} height={8} fill="#111827" />
-      <rect x={0} y={0} width={1} height={1} fill={color} />
-      <rect x={1} y={1} width={1} height={1} fill={color} />
-      <rect x={2} y={2} width={1} height={1} fill={color} />
-      <rect x={3} y={3} width={1} height={1} fill={color} />
-      <rect x={4} y={4} width={1} height={1} fill={color} />
-      <rect x={5} y={5} width={2} height={1} fill={color} />
-      <rect x={7} y={4} width={1} height={1} fill={color} />
-      <rect x={8} y={3} width={1} height={1} fill={color} />
-      <rect x={9} y={2} width={1} height={1} fill={color} />
-      <rect x={10} y={1} width={1} height={1} fill={color} />
-      <rect x={11} y={0} width={1} height={1} fill={color} />
-      <rect x={1} y={8} width={10} height={1} fill={color} />
-    </svg>
-  );
-}
 
 function IconChatBubble({ size = 20, color = "#4ecdc4" }: { size?: number; color?: string }) {
   return (
@@ -721,19 +337,6 @@ function IconLink({ size = 16, color = "#4ecdc4" }: { size?: number; color?: str
   );
 }
 
-function IconAttachment({ size = 16, color = "#c77dff" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 8 12" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={0} y={2} width={6} height={10} fill={color} />
-      <rect x={2} y={0} width={6} height={10} fill={color} />
-      <rect x={0} y={2} width={2} height={2} fill="#0a0e1a" opacity={0.5} />
-      <rect x={3} y={4} width={4} height={1} fill="#0a0e1a" opacity={0.4} />
-      <rect x={3} y={6} width={4} height={1} fill="#0a0e1a" opacity={0.4} />
-      <rect x={3} y={8} width={3} height={1} fill="#0a0e1a" opacity={0.4} />
-    </svg>
-  );
-}
-
 function IconDownload({ size = 16, color = "#00ff88" }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 10 12" style={{ imageRendering: "pixelated", display: "block" }}>
@@ -772,18 +375,6 @@ function IconReportFlag({ size = 16, color = "#ff6b35" }: { size?: number; color
   );
 }
 
-function IconEyeInspect({ size = 16, color = "#4ecdc4" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 12 8" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={2} y={1} width={8} height={1} fill={color} />
-      <rect x={1} y={2} width={10} height={4} fill={color} />
-      <rect x={2} y={6} width={8} height={1} fill={color} />
-      <rect x={4} y={2} width={4} height={4} fill="#111827" />
-      <rect x={5} y={3} width={2} height={2} fill={color} />
-    </svg>
-  );
-}
-
 function IconTrashBin({ size = 16, color = "#ff2d55" }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 10 12" style={{ imageRendering: "pixelated", display: "block" }}>
@@ -797,30 +388,7 @@ function IconTrashBin({ size = 16, color = "#ff2d55" }: { size?: number; color?:
   );
 }
 
-function IconCoin({ size = 16, color = "#ffe66d" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 10 10" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={3} y={0} width={4} height={1} fill={color} /><rect x={1} y={1} width={8} height={2} fill={color} />
-      <rect x={0} y={3} width={10} height={4} fill={color} /><rect x={1} y={7} width={8} height={2} fill={color} />
-      <rect x={3} y={9} width={4} height={1} fill={color} />
-      <rect x={4} y={2} width={2} height={1} fill="#aa8800" /><rect x={3} y={3} width={4} height={1} fill="#aa8800" />
-      <rect x={3} y={5} width={4} height={1} fill="#aa8800" /><rect x={4} y={6} width={2} height={1} fill="#aa8800" />
-    </svg>
-  );
-}
 
-function IconChat({ size = 20, color = "#4ecdc4" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 12 12" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={1} y={0} width={10} height={1} fill={color} /><rect x={0} y={1} width={12} height={7} fill={color} />
-      <rect x={1} y={8} width={10} height={1} fill={color} />
-      <rect x={2} y={8} width={2} height={2} fill={color} /><rect x={2} y={10} width={2} height={2} fill={color} />
-      <rect x={2} y={2} width={2} height={2} fill="#0a0e1a" /><rect x={5} y={2} width={2} height={2} fill="#0a0e1a" />
-      <rect x={8} y={2} width={2} height={2} fill="#0a0e1a" />
-      <rect x={2} y={5} width={8} height={1} fill="#0a0e1a" opacity="0.4" />
-    </svg>
-  );
-}
 
 function IconSell({ size = 14, color = "#ff6b35" }: { size?: number; color?: string }) {
   return (
@@ -834,511 +402,19 @@ function IconSell({ size = 14, color = "#ff6b35" }: { size?: number; color?: str
   );
 }
 
-function IconStore({ size = 20, color = "#c77dff" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 12 12" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={0} y={0} width={12} height={3} fill={color} />
-      <rect x={1} y={1} width={2} height={1} fill="#ffffff" opacity={0.3} />
-      <rect x={5} y={1} width={2} height={1} fill="#ffffff" opacity={0.3} />
-      <rect x={9} y={1} width={2} height={1} fill="#ffffff" opacity={0.3} />
-      <rect x={0} y={3} width={12} height={1} fill="#0a0e1a" opacity={0.4} />
-      <rect x={0} y={4} width={12} height={8} fill={color} opacity={0.7} />
-      <rect x={1} y={4} width={10} height={8} fill={color} />
-      <rect x={4} y={6} width={4} height={6} fill="#0a0e1a" />
-      <rect x={5} y={8} width={1} height={1} fill={color} />
-      <rect x={1} y={5} width={2} height={2} fill="#0a0e1a" opacity={0.4} />
-      <rect x={9} y={5} width={2} height={2} fill="#0a0e1a" opacity={0.4} />
-    </svg>
-  );
-}
-
 // ── Per-item pixel-art furniture icons ───────────────────────────────────
-function FurnitureIcon({ itemId, size = 36 }: { itemId: string; size?: number }) {
-  const s = size;
-  switch (itemId) {
-    case "grandma-chair": return (
-      <svg width={s} height={s} viewBox="0 0 10 10" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={2} y={0} width={6} height={6} fill="#7a3a9a"/>
-        <rect x={3} y={1} width={4} height={4} fill="#9b4dca"/>
-        <rect x={0} y={4} width={2} height={5} fill="#5a2a7a"/>
-        <rect x={8} y={4} width={2} height={5} fill="#5a2a7a"/>
-        <rect x={1} y={6} width={8} height={3} fill="#9b4dca"/>
-        <rect x={2} y={7} width={6} height={1} fill="#c77dff" opacity={0.5}/>
-        <rect x={1} y={9} width={2} height={1} fill="#3a1a5a"/>
-        <rect x={7} y={9} width={2} height={1} fill="#3a1a5a"/>
-      </svg>
-    );
-    case "grandma-shelf": return (
-      <svg width={s} height={s} viewBox="0 0 10 10" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={0} y={0} width={10} height={10} fill="#5a3010"/>
-        <rect x={1} y={0} width={8} height={10} fill="#0a0e1a"/>
-        <rect x={0} y={4} width={10} height={1} fill="#5a3010"/>
-        <rect x={1} y={0} width={2} height={4} fill="#ff2d55"/>
-        <rect x={4} y={1} width={1} height={3} fill="#00ff88"/>
-        <rect x={6} y={0} width={1} height={4} fill="#ffe66d"/>
-        <rect x={8} y={1} width={1} height={3} fill="#c77dff"/>
-        <rect x={1} y={5} width={3} height={4} fill="#4ecdc4"/>
-        <rect x={5} y={5} width={1} height={4} fill="#ff6b35"/>
-        <rect x={7} y={6} width={2} height={3} fill="#ffe66d"/>
-        <rect x={9} y={5} width={1} height={4} fill="#5a3010"/>
-      </svg>
-    );
-    case "grandma-lamp": return (
-      <svg width={s} height={s} viewBox="0 0 10 12" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={2} y={0} width={6} height={1} fill="#ffe66d"/>
-        <rect x={1} y={1} width={8} height={1} fill="#ffe66d"/>
-        <rect x={0} y={2} width={10} height={2} fill="#ffe66d"/>
-        <rect x={1} y={1} width={8} height={3} fill="#ffe66d" opacity={0.35}/>
-        <rect x={4} y={4} width={2} height={6} fill="#8b5e3c"/>
-        <rect x={2} y={9} width={6} height={2} fill="#8b5e3c"/>
-        <rect x={1} y={10} width={8} height={1} fill="#6b4020"/>
-        <rect x={4} y={3} width={2} height={1} fill="#ffffff" opacity={0.7}/>
-      </svg>
-    );
-    case "grandma-frame": return (
-      <svg width={s} height={s} viewBox="0 0 10 9" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={0} y={0} width={10} height={9} fill="#8b5e3c"/>
-        <rect x={1} y={1} width={8} height={7} fill="#6b4020"/>
-        <rect x={2} y={2} width={6} height={5} fill="#1a3a5a"/>
-        <rect x={2} y={2} width={6} height={2} fill="#1a2a6a"/>
-        <rect x={2} y={4} width={6} height={3} fill="#1a4a2a"/>
-        <rect x={3} y={2} width={2} height={2} fill="#ffe66d" opacity={0.9}/>
-        <rect x={3} y={2} width={1} height={1} fill="#ffffff" opacity={0.6}/>
-        <rect x={7} y={3} width={1} height={4} fill="#0a2a0a"/>
-        <rect x={6} y={2} width={3} height={3} fill="#0a2a0a"/>
-      </svg>
-    );
-    case "mum-plant": return (
-      <svg width={s} height={s} viewBox="0 0 10 12" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={4} y={0} width={2} height={1} fill="#00cc66"/>
-        <rect x={3} y={1} width={4} height={1} fill="#00ff88"/>
-        <rect x={1} y={2} width={8} height={2} fill="#00cc66"/>
-        <rect x={2} y={1} width={6} height={3} fill="#00ff88"/>
-        <rect x={1} y={2} width={3} height={2} fill="#00cc66" opacity={0.6}/>
-        <rect x={2} y={2} width={2} height={1} fill="#4ecdc4" opacity={0.25}/>
-        <rect x={4} y={4} width={2} height={2} fill="#006633"/>
-        <rect x={2} y={6} width={6} height={1} fill="#cd7f32"/>
-        <rect x={3} y={7} width={4} height={4} fill="#cd7f32"/>
-        <rect x={2} y={7} width={6} height={3} fill="#b05a20"/>
-        <rect x={3} y={7} width={2} height={2} fill="#cd7f32" opacity={0.5}/>
-        <rect x={3} y={10} width={4} height={1} fill="#8b3a10"/>
-      </svg>
-    );
-    case "mum-desk": return (
-      <svg width={s} height={s} viewBox="0 0 12 10" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={3} y={0} width={7} height={4} fill="#1a2340"/>
-        <rect x={4} y={1} width={5} height={2} fill="#0a0e1a"/>
-        <rect x={5} y={1} width={3} height={1} fill="#4ecdc4" opacity={0.4}/>
-        <rect x={5} y={2} width={1} height={1} fill="#00ff88" opacity={0.7}/>
-        <rect x={6} y={4} width={2} height={1} fill="#2a3a5c"/>
-        <rect x={0} y={5} width={12} height={2} fill="#8b5e3c"/>
-        <rect x={0} y={5} width={12} height={1} fill="#aa7040"/>
-        <rect x={1} y={7} width={2} height={3} fill="#6b4020"/>
-        <rect x={9} y={7} width={2} height={3} fill="#6b4020"/>
-        <rect x={5} y={6} width={2} height={1} fill="#6b4020"/>
-      </svg>
-    );
-    case "mum-laptop": return (
-      <svg width={s} height={s} viewBox="0 0 12 10" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={1} y={0} width={10} height={6} fill="#1a2340"/>
-        <rect x={2} y={1} width={8} height={4} fill="#0a0e1a"/>
-        <rect x={3} y={1} width={6} height={3} fill="#4ecdc4" opacity={0.12}/>
-        <rect x={4} y={2} width={4} height={1} fill="#00ff88" opacity={0.25}/>
-        <rect x={5} y={3} width={2} height={1} fill="#4ecdc4" opacity={0.5}/>
-        <rect x={6} y={0} width={1} height={1} fill="#ff2d55" opacity={0.8}/>
-        <rect x={1} y={6} width={10} height={1} fill="#2a3a5c"/>
-        <rect x={0} y={7} width={12} height={3} fill="#1a2a3c"/>
-        <rect x={1} y={7} width={10} height={2} fill="#2a3a5c"/>
-        <rect x={2} y={8} width={1} height={1} fill="#3a4a6c"/><rect x={4} y={8} width={1} height={1} fill="#3a4a6c"/>
-        <rect x={6} y={8} width={1} height={1} fill="#3a4a6c"/><rect x={8} y={8} width={1} height={1} fill="#3a4a6c"/>
-        <rect x={3} y={9} width={6} height={1} fill="#3a4a6c"/>
-      </svg>
-    );
-    case "mum-phone": return (
-      <svg width={s} height={s} viewBox="0 0 8 12" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={1} y={0} width={6} height={12} fill="#2a3a5c"/>
-        <rect x={0} y={1} width={8} height={10} fill="#2a3a5c"/>
-        <rect x={2} y={1} width={4} height={7} fill="#0a0e1a"/>
-        <rect x={2} y={1} width={4} height={6} fill="#1a2a4a"/>
-        <rect x={3} y={2} width={2} height={1} fill="#4ecdc4" opacity={0.7}/>
-        <rect x={2} y={4} width={4} height={1} fill="#6b8ba4" opacity={0.5}/>
-        <rect x={2} y={5} width={3} height={1} fill="#6b8ba4" opacity={0.4}/>
-        <rect x={3} y={0} width={2} height={1} fill="#1a2340"/>
-        <rect x={3} y={0} width={1} height={1} fill="#111827"/>
-        <rect x={3} y={9} width={2} height={1} fill="#2a3a5c"/>
-      </svg>
-    );
-    case "dad-tv": return (
-      <svg width={s} height={s} viewBox="0 0 12 12" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={0} y={0} width={12} height={8} fill="#2a3a5c"/>
-        <rect x={1} y={1} width={10} height={6} fill="#0a0e1a"/>
-        <rect x={2} y={2} width={4} height={2} fill="#4ecdc4" opacity={0.35}/>
-        <rect x={7} y={2} width={3} height={1} fill="#ff2d55" opacity={0.6}/>
-        <rect x={7} y={3} width={3} height={1} fill="#ffe66d" opacity={0.5}/>
-        <rect x={2} y={5} width={8} height={1} fill="#2a4a6a" opacity={0.5}/>
-        <rect x={10} y={1} width={1} height={1} fill="#00ff88"/>
-        <rect x={5} y={8} width={2} height={1} fill="#1a2340"/>
-        <rect x={3} y={9} width={6} height={3} fill="#2a3a5c"/>
-        <rect x={3} y={9} width={6} height={1} fill="#3a4a6c"/>
-      </svg>
-    );
-    case "dad-couch": return (
-      <svg width={s} height={s} viewBox="0 0 12 9" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={1} y={0} width={10} height={5} fill="#2a3a4a"/>
-        <rect x={2} y={1} width={4} height={3} fill="#3a4a5a"/>
-        <rect x={7} y={1} width={3} height={3} fill="#3a4a5a"/>
-        <rect x={2} y={1} width={4} height={1} fill="#4a5a6a" opacity={0.6}/>
-        <rect x={7} y={1} width={3} height={1} fill="#4a5a6a" opacity={0.6}/>
-        <rect x={6} y={1} width={1} height={4} fill="#1a2a3a"/>
-        <rect x={0} y={5} width={12} height={3} fill="#3a4a5a"/>
-        <rect x={1} y={5} width={10} height={1} fill="#4a5a6a"/>
-        <rect x={0} y={0} width={1} height={8} fill="#1a2a3a"/>
-        <rect x={11} y={0} width={1} height={8} fill="#1a2a3a"/>
-        <rect x={1} y={8} width={2} height={1} fill="#0a1a2a"/>
-        <rect x={9} y={8} width={2} height={1} fill="#0a1a2a"/>
-      </svg>
-    );
-    case "dad-cabinet": return (
-      <svg width={s} height={s} viewBox="0 0 10 12" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={0} y={0} width={10} height={12} fill="#5a3010"/>
-        <rect x={1} y={0} width={8} height={12} fill="#4a2010"/>
-        <rect x={1} y={1} width={8} height={3} fill="#3a1808"/>
-        <rect x={1} y={1} width={8} height={1} fill="#5a3010" opacity={0.5}/>
-        <rect x={4} y={2} width={2} height={1} fill="#ffe66d"/>
-        <rect x={1} y={5} width={8} height={3} fill="#3a1808"/>
-        <rect x={1} y={5} width={8} height={1} fill="#5a3010" opacity={0.5}/>
-        <rect x={4} y={6} width={2} height={1} fill="#ffe66d"/>
-        <rect x={1} y={9} width={8} height={3} fill="#3a1808"/>
-        <rect x={1} y={9} width={8} height={1} fill="#5a3010" opacity={0.5}/>
-        <rect x={4} y={10} width={2} height={1} fill="#ffe66d"/>
-        <rect x={0} y={4} width={10} height={1} fill="#2a1000"/>
-        <rect x={0} y={8} width={10} height={1} fill="#2a1000"/>
-      </svg>
-    );
-    case "dad-door": return (
-      <svg width={s} height={s} viewBox="0 0 10 14" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={0} y={0} width={10} height={14} fill="#5a3010"/>
-        <rect x={1} y={1} width={8} height={12} fill="#8b5e3c"/>
-        <rect x={2} y={1} width={6} height={12} fill="#aa7040"/>
-        <rect x={2} y={2} width={2} height={3} fill="#8b5e3c"/>
-        <rect x={6} y={2} width={2} height={3} fill="#8b5e3c"/>
-        <rect x={2} y={7} width={2} height={5} fill="#8b5e3c"/>
-        <rect x={6} y={7} width={2} height={5} fill="#8b5e3c"/>
-        <rect x={7} y={6} width={2} height={2} fill="#ffe66d"/>
-        <rect x={7} y={7} width={1} height={1} fill="#aa9900"/>
-        <rect x={1} y={3} width={1} height={1} fill="#3a1808"/>
-        <rect x={1} y={10} width={1} height={1} fill="#3a1808"/>
-      </svg>
-    );
-    case "dad-shower": return (
-      <svg width={s} height={s} viewBox="0 0 10 14" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={4} y={0} width={2} height={5} fill="#6b8ba4"/>
-        <rect x={1} y={4} width={8} height={2} fill="#6b8ba4"/>
-        <rect x={1} y={2} width={2} height={4} fill="#6b8ba4"/>
-        <rect x={0} y={6} width={10} height={3} fill="#4a6a7c"/>
-        <rect x={1} y={6} width={8} height={1} fill="#5a7a8c"/>
-        <rect x={1} y={7} width={1} height={1} fill="#2a4a5c"/>
-        <rect x={3} y={7} width={1} height={1} fill="#2a4a5c"/>
-        <rect x={5} y={7} width={1} height={1} fill="#2a4a5c"/>
-        <rect x={7} y={7} width={1} height={1} fill="#2a4a5c"/>
-        <rect x={2} y={8} width={1} height={1} fill="#2a4a5c"/>
-        <rect x={4} y={8} width={1} height={1} fill="#2a4a5c"/>
-        <rect x={6} y={8} width={1} height={1} fill="#2a4a5c"/>
-        <rect x={1} y={10} width={1} height={2} fill="#4ecdc4" opacity={0.7}/>
-        <rect x={3} y={11} width={1} height={2} fill="#4ecdc4" opacity={0.7}/>
-        <rect x={5} y={10} width={1} height={2} fill="#4ecdc4" opacity={0.7}/>
-        <rect x={7} y={11} width={1} height={2} fill="#4ecdc4" opacity={0.7}/>
-        <rect x={9} y={10} width={1} height={2} fill="#4ecdc4" opacity={0.5}/>
-      </svg>
-    );
-    case "kid-bed": return (
-      <svg width={s} height={s} viewBox="0 0 12 10" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={0} y={0} width={3} height={9} fill="#ffe66d"/>
-        <rect x={1} y={1} width={1} height={7} fill="#aa9900"/>
-        <rect x={3} y={2} width={9} height={6} fill="#2a4aa4"/>
-        <rect x={3} y={2} width={9} height={5} fill="#3a5ab4"/>
-        <rect x={4} y={2} width={4} height={3} fill="#e8f4f8"/>
-        <rect x={5} y={3} width={2} height={1} fill="#c0d8e0"/>
-        <rect x={3} y={5} width={9} height={1} fill="#1a3a7a"/>
-        <rect x={4} y={6} width={8} height={2} fill="#2a4aa4"/>
-        <rect x={0} y={8} width={12} height={2} fill="#aa9900"/>
-        <rect x={10} y={3} width={2} height={7} fill="#ffe66d"/>
-      </svg>
-    );
-    case "kid-toybox": return (
-      <svg width={s} height={s} viewBox="0 0 10 9" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={0} y={0} width={10} height={3} fill="#cc9900"/>
-        <rect x={0} y={0} width={10} height={1} fill="#ffe66d"/>
-        <rect x={4} y={1} width={2} height={2} fill="#ff6b35"/>
-        <rect x={0} y={3} width={10} height={6} fill="#aa7700"/>
-        <rect x={1} y={3} width={8} height={5} fill="#bb8800"/>
-        <rect x={1} y={4} width={2} height={2} fill="#ff2d55" opacity={0.9}/>
-        <rect x={4} y={4} width={2} height={2} fill="#00ff88" opacity={0.9}/>
-        <rect x={7} y={4} width={2} height={2} fill="#4ecdc4" opacity={0.9}/>
-        <rect x={2} y={6} width={2} height={2} fill="#c77dff" opacity={0.9}/>
-        <rect x={6} y={6} width={2} height={2} fill="#ffe66d" opacity={0.9}/>
-        <rect x={0} y={8} width={10} height={1} fill="#8b5e00"/>
-      </svg>
-    );
-    case "kid-teddy": return (
-      <svg width={s} height={s} viewBox="0 0 10 12" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={1} y={0} width={3} height={3} fill="#cc9900"/>
-        <rect x={6} y={0} width={3} height={3} fill="#cc9900"/>
-        <rect x={2} y={0} width={1} height={2} fill="#ff8855" opacity={0.6}/>
-        <rect x={7} y={0} width={1} height={2} fill="#ff8855" opacity={0.6}/>
-        <rect x={1} y={1} width={8} height={5} fill="#cc9900"/>
-        <rect x={2} y={2} width={6} height={4} fill="#ddaa00"/>
-        <rect x={3} y={2} width={1} height={2} fill="#0a0e1a"/>
-        <rect x={6} y={2} width={1} height={2} fill="#0a0e1a"/>
-        <rect x={3} y={2} width={1} height={1} fill="#ffffff" opacity={0.5}/>
-        <rect x={6} y={2} width={1} height={1} fill="#ffffff" opacity={0.5}/>
-        <rect x={4} y={4} width={2} height={1} fill="#0a0e1a"/>
-        <rect x={3} y={5} width={4} height={1} fill="#0a0e1a"/>
-        <rect x={2} y={6} width={6} height={5} fill="#cc9900"/>
-        <rect x={3} y={6} width={4} height={5} fill="#ddaa00"/>
-        <rect x={3} y={7} width={4} height={3} fill="#ffe66d" opacity={0.7}/>
-        <rect x={0} y={6} width={2} height={4} fill="#cc9900"/>
-        <rect x={8} y={6} width={2} height={4} fill="#cc9900"/>
-        <rect x={2} y={10} width={3} height={2} fill="#aa7700"/>
-        <rect x={5} y={10} width={3} height={2} fill="#aa7700"/>
-      </svg>
-    );
-    case "kid-alarm": return (
-      <svg width={s} height={s} viewBox="0 0 10 11" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={1} y={0} width={3} height={3} fill="#ffe66d"/>
-        <rect x={2} y={1} width={1} height={2} fill="#aa9900"/>
-        <rect x={6} y={0} width={3} height={3} fill="#ffe66d"/>
-        <rect x={7} y={1} width={1} height={2} fill="#aa9900"/>
-        <rect x={2} y={1} width={6} height={1} fill="#ffe66d"/>
-        <rect x={1} y={2} width={8} height={6} fill="#ffe66d"/>
-        <rect x={0} y={3} width={10} height={4} fill="#ffe66d"/>
-        <rect x={1} y={7} width={8} height={2} fill="#ffe66d"/>
-        <rect x={2} y={8} width={6} height={2} fill="#ffe66d"/>
-        <rect x={2} y={2} width={6} height={7} fill="#0a0e1a"/>
-        <rect x={3} y={3} width={4} height={5} fill="#111827"/>
-        <rect x={4} y={3} width={1} height={4} fill="#e8f4f8"/>
-        <rect x={4} y={5} width={3} height={1} fill="#ff2d55"/>
-        <rect x={4} y={3} width={1} height={1} fill="#2a3a5c"/>
-        <rect x={4} y={7} width={1} height={1} fill="#2a3a5c"/>
-        <rect x={2} y={5} width={1} height={1} fill="#2a3a5c"/>
-        <rect x={6} y={5} width={1} height={1} fill="#2a3a5c"/>
-        <rect x={2} y={9} width={2} height={2} fill="#aa9900"/>
-        <rect x={6} y={9} width={2} height={2} fill="#aa9900"/>
-      </svg>
-    );
-    default:
-      return (
-        <svg width={s} height={s} viewBox="0 0 10 10" style={{ imageRendering: "pixelated", display: "block" }}>
-          <rect x={1} y={1} width={8} height={8} fill="#2a3a5c"/>
-          <rect x={3} y={3} width={4} height={4} fill="#1a2340"/>
-          <rect x={4} y={4} width={2} height={2} fill="#4ecdc4" opacity={0.5}/>
-        </svg>
-      );
-  }
-}
+
 
 // ── Wallpaper preview swatches ───────────────────────────────────────────
-function WallpaperSwatch({ id }: { id: string }) {
-  if (id === "wp1") return (
-    <svg width="100%" height="100%" viewBox="0 0 14 14" preserveAspectRatio="xMidYMid slice" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect width={14} height={14} fill="#0a0e1a"/>
-      <rect x={0} y={4} width={14} height={1} fill="#2a3a5c" opacity={0.7}/>
-      <rect x={0} y={8} width={14} height={1} fill="#2a3a5c" opacity={0.7}/>
-      <rect x={0} y={12} width={14} height={1} fill="#2a3a5c" opacity={0.7}/>
-      <rect x={4} y={0} width={1} height={14} fill="#2a3a5c" opacity={0.7}/>
-      <rect x={8} y={0} width={1} height={14} fill="#2a3a5c" opacity={0.7}/>
-      <rect x={12} y={0} width={1} height={14} fill="#2a3a5c" opacity={0.7}/>
-      <rect x={4} y={4} width={1} height={1} fill="#4ecdc4" opacity={0.55}/>
-      <rect x={8} y={4} width={1} height={1} fill="#4ecdc4" opacity={0.55}/>
-      <rect x={12} y={4} width={1} height={1} fill="#4ecdc4" opacity={0.55}/>
-      <rect x={4} y={8} width={1} height={1} fill="#4ecdc4" opacity={0.55}/>
-      <rect x={8} y={8} width={1} height={1} fill="#4ecdc4" opacity={0.55}/>
-      <rect x={12} y={8} width={1} height={1} fill="#4ecdc4" opacity={0.55}/>
-      <rect x={4} y={12} width={1} height={1} fill="#4ecdc4" opacity={0.55}/>
-      <rect x={8} y={12} width={1} height={1} fill="#4ecdc4" opacity={0.55}/>
-    </svg>
-  );
-  if (id === "wp2") return (
-    <svg width="100%" height="100%" viewBox="0 0 14 14" preserveAspectRatio="xMidYMid slice" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect width={14} height={14} fill="#1a2340"/>
-      <rect x={0} y={0} width={14} height={3} fill="#0a0e1a"/>
-      <rect x={0} y={5} width={14} height={3} fill="#0a0e1a"/>
-      <rect x={0} y={10} width={14} height={3} fill="#0a0e1a"/>
-      <rect x={0} y={3} width={14} height={1} fill="#4ecdc4" opacity={0.22}/>
-      <rect x={0} y={8} width={14} height={1} fill="#4ecdc4" opacity={0.22}/>
-      <rect x={0} y={13} width={14} height={1} fill="#4ecdc4" opacity={0.22}/>
-    </svg>
-  );
-  return (
-    <svg width="100%" height="100%" viewBox="0 0 14 14" preserveAspectRatio="xMidYMid slice" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect width={14} height={14} fill="#100c20"/>
-      <rect x={2} y={1} width={1} height={3} fill="#ffffff" opacity={0.85}/>
-      <rect x={1} y={2} width={3} height={1} fill="#ffffff" opacity={0.85}/>
-      <rect x={7} y={4} width={1} height={1} fill="#ffffff" opacity={0.9}/>
-      <rect x={11} y={1} width={1} height={3} fill="#c77dff" opacity={0.75}/>
-      <rect x={10} y={2} width={3} height={1} fill="#c77dff" opacity={0.75}/>
-      <rect x={4} y={7} width={1} height={1} fill="#ffffff" opacity={0.6}/>
-      <rect x={9} y={6} width={1} height={1} fill="#ffe66d" opacity={0.75}/>
-      <rect x={12} y={9} width={1} height={1} fill="#ffffff" opacity={0.5}/>
-      <rect x={1} y={11} width={1} height={1} fill="#c77dff" opacity={0.65}/>
-      <rect x={6} y={11} width={1} height={3} fill="#ffffff" opacity={0.5}/>
-      <rect x={5} y={12} width={3} height={1} fill="#ffffff" opacity={0.5}/>
-      <rect x={10} y={12} width={1} height={1} fill="#ffe66d" opacity={0.6}/>
-    </svg>
-  );
-}
+
 
 // ── Pixel Mascot ──────────────────────────────────────────────────────────
 // Outfit → body/limb/accent colours. `Standard` reproduces the original mascot so
 // every existing call site (headers, home, etc.) is untouched when no outfit is passed.
-const MASCOT_OUTFITS: Record<string, { body: string; accent: string }> = {
-  Standard: { body: "#00ff88", accent: "#00ff88" },
-  Camo:     { body: "#5a7a3a", accent: "#3a5a2a" },
-  Neon:     { body: "#ff2d55", accent: "#c77dff" },
-  Stealth:  { body: "#2a3a5c", accent: "#4ecdc4" },
-};
-
-function PixelMascot({
-  size = 64, animate = false,
-  color = "#4ecdc4", hat = "None", eyes = "Default", outfit = "Standard",
-}: {
-  size?: number; animate?: boolean;
-  color?: string; hat?: string; eyes?: string; outfit?: string;
-}) {
-  const [frame, setFrame] = useState(0);
-  useEffect(() => {
-    if (!animate) return;
-    const t = setInterval(() => setFrame((f) => (f + 1) % 2), 500);
-    return () => clearInterval(t);
-  }, [animate]);
-
-  const s = size / 16;
-  const px = (n: number) => n * s;
-  const bodyY = frame === 0 ? 0 : s;
-  const fit = MASCOT_OUTFITS[outfit] ?? MASCOT_OUTFITS.Standard;
-
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ imageRendering: "pixelated" }}>
-      {/* Head + limbs take the chosen avatar colour. */}
-      <rect x={px(4)} y={px(1)} width={px(8)} height={px(7)} fill={color} />
-
-      {/* Eyes — Default draws the plain sockets; the others overlay a style. */}
-      {eyes === "Default" && (<>
-        <rect x={px(5)} y={px(3)} width={px(2)} height={px(2)} fill="#0a0e1a" />
-        <rect x={px(9)} y={px(3)} width={px(2)} height={px(2)} fill="#0a0e1a" />
-        <rect x={px(6)} y={px(3)} width={px(1)} height={px(1)} fill="#ffffff" />
-        <rect x={px(10)} y={px(3)} width={px(1)} height={px(1)} fill="#ffffff" />
-      </>)}
-      {eyes === "Shades" && (<>
-        <rect x={px(4)} y={px(3)} width={px(8)} height={px(2)} fill="#0a0e1a" />
-        <rect x={px(7)} y={px(3)} width={px(2)} height={px(1)} fill="#2a3a5c" />
-      </>)}
-      {eyes === "Visor" && (<>
-        <rect x={px(4)} y={px(3)} width={px(8)} height={px(2)} fill="#4ecdc4" opacity={0.75} />
-        <rect x={px(4)} y={px(3)} width={px(8)} height={px(1)} fill="#ffffff" opacity={0.4} />
-      </>)}
-      {eyes === "Goggles" && (<>
-        <rect x={px(4)} y={px(3)} width={px(8)} height={px(1)} fill="#ffe66d" />
-        <rect x={px(5)} y={px(3)} width={px(2)} height={px(2)} fill="#0a0e1a" />
-        <rect x={px(9)} y={px(3)} width={px(2)} height={px(2)} fill="#0a0e1a" />
-        <rect x={px(6)} y={px(4)} width={px(1)} height={px(1)} fill="#4ecdc4" />
-        <rect x={px(10)} y={px(4)} width={px(1)} height={px(1)} fill="#4ecdc4" />
-      </>)}
-
-      {/* Mouth */}
-      <rect x={px(6)} y={px(6)} width={px(1)} height={px(1)} fill="#0a0e1a" />
-      <rect x={px(7)} y={px(7)} width={px(2)} height={px(1)} fill="#0a0e1a" />
-      <rect x={px(9)} y={px(6)} width={px(1)} height={px(1)} fill="#0a0e1a" />
-
-      {/* Hat — drawn over the top of the head. */}
-      {hat === "Cap" && (<>
-        <rect x={px(4)} y={px(0)} width={px(8)} height={px(1)} fill="#ff2d55" />
-        <rect x={px(4)} y={px(1)} width={px(8)} height={px(1)} fill="#ff2d55" />
-        <rect x={px(1)} y={px(1)} width={px(3)} height={px(1)} fill="#ff2d55" />
-      </>)}
-      {hat === "Helmet" && (<>
-        <rect x={px(3)} y={px(0)} width={px(10)} height={px(2)} fill="#6b8ba4" />
-        <rect x={px(7)} y={px(0)} width={px(2)} height={px(2)} fill="#ffe66d" />
-      </>)}
-      {hat === "Crown" && (<>
-        <rect x={px(4)} y={px(1)} width={px(8)} height={px(1)} fill="#ffe66d" />
-        <rect x={px(4)} y={px(0)} width={px(1)} height={px(1)} fill="#ffe66d" />
-        <rect x={px(6)} y={px(0)} width={px(1)} height={px(1)} fill="#ffe66d" />
-        <rect x={px(8)} y={px(0)} width={px(1)} height={px(1)} fill="#ffe66d" />
-        <rect x={px(10)} y={px(0)} width={px(1)} height={px(1)} fill="#ffe66d" />
-      </>)}
-
-      {/* Body (outfit) + limbs (avatar colour) */}
-      <rect x={px(4)} y={px(8) + bodyY} width={px(8)} height={px(6)} fill={fit.body} />
-      <rect x={px(5)} y={px(9) + bodyY} width={px(6)} height={px(4)} fill="#0a0e1a" />
-      <rect x={px(6)} y={px(10) + bodyY} width={px(4)} height={px(2)} fill={fit.accent} />
-      <rect x={px(1)} y={px(9) + bodyY} width={px(3)} height={px(2)} fill={color} />
-      <rect x={px(12)} y={px(9) + bodyY} width={px(3)} height={px(2)} fill={color} />
-      <rect x={px(5)} y={px(14) + bodyY} width={px(2)} height={px(2)} fill={color} />
-      <rect x={px(9)} y={px(14) + bodyY} width={px(2)} height={px(2)} fill={color} />
-    </svg>
-  );
-}
 
 // ── Pixi Avatar — AI coach variant of the mascot ─────────────────────────
 // Distinct from PixelMascot: antenna on top, single-pixel glowing eye centres,
 // slightly different body accents. Reads as "bot, not player".
-function PixiAvatar({ size = 32 }: { size?: number }) {
-  const s = size / 16;
-  const px = (n: number) => n * s;
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ imageRendering: "pixelated" }}>
-      {/* Antenna */}
-      <rect x={px(7)} y={px(0)} width={px(2)} height={px(1)} fill="#00d4ff" />
-      <rect x={px(7)} y={px(1)} width={px(2)} height={px(1)} fill="#ffe66d" />
-      {/* Head */}
-      <rect x={px(4)} y={px(2)} width={px(8)} height={px(6)} fill="#00d4ff" />
-      <rect x={px(3)} y={px(3)} width={px(1)} height={px(4)} fill="#00d4ff" />
-      <rect x={px(12)} y={px(3)} width={px(1)} height={px(4)} fill="#00d4ff" />
-      {/* Eye sockets (dark) with glowing centre pixels */}
-      <rect x={px(5)} y={px(4)} width={px(2)} height={px(2)} fill="#0a0e1a" />
-      <rect x={px(9)} y={px(4)} width={px(2)} height={px(2)} fill="#0a0e1a" />
-      <rect x={px(5)} y={px(4)} width={px(1)} height={px(1)} fill="#00ff88" />
-      <rect x={px(10)} y={px(5)} width={px(1)} height={px(1)} fill="#00ff88" />
-      {/* Mouth speaker grille */}
-      <rect x={px(6)} y={px(6)} width={px(4)} height={px(1)} fill="#0a0e1a" />
-      <rect x={px(6)} y={px(6)} width={px(1)} height={px(1)} fill="#00ff88" />
-      <rect x={px(8)} y={px(6)} width={px(1)} height={px(1)} fill="#00ff88" />
-      {/* Body */}
-      <rect x={px(4)} y={px(8)} width={px(8)} height={px(6)} fill="#0099cc" />
-      <rect x={px(5)} y={px(9)} width={px(6)} height={px(4)} fill="#0a0e1a" />
-      {/* Chest indicator light */}
-      <rect x={px(7)} y={px(10)} width={px(2)} height={px(2)} fill="#ffe66d" />
-      <rect x={px(7)} y={px(10)} width={px(1)} height={px(1)} fill="#ffffff" opacity={0.7} />
-      {/* Arms (angular, robotic) */}
-      <rect x={px(1)} y={px(9)} width={px(3)} height={px(2)} fill="#00d4ff" />
-      <rect x={px(12)} y={px(9)} width={px(3)} height={px(2)} fill="#00d4ff" />
-      {/* Feet */}
-      <rect x={px(5)} y={px(14)} width={px(2)} height={px(2)} fill="#00d4ff" />
-      <rect x={px(9)} y={px(14)} width={px(2)} height={px(2)} fill="#00d4ff" />
-    </svg>
-  );
-}
-
-function PixelAvatar({ rank = 1, size = 40 }: { rank?: number; size?: number }) {
-  const colors = ["#00ff88", "#ff6b35", "#4ecdc4", "#ffe66d", "#ff2d55", "#c77dff", "#4ecdc4", "#ff6b35", "#6b8ba4"];
-  const c = colors[(rank - 1) % colors.length];
-  const s = size / 16;
-  const px = (n: number) => n * s;
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ imageRendering: "pixelated" }}>
-      <rect x={px(4)} y={px(1)} width={px(8)} height={px(7)} fill={c} />
-      <rect x={px(5)} y={px(3)} width={px(2)} height={px(2)} fill="#0a0e1a" />
-      <rect x={px(9)} y={px(3)} width={px(2)} height={px(2)} fill="#0a0e1a" />
-      <rect x={px(6)} y={px(6)} width={px(4)} height={px(1)} fill="#0a0e1a" />
-      <rect x={px(4)} y={px(8)} width={px(8)} height={px(5)} fill={c} />
-      <rect x={px(2)} y={px(9)} width={px(2)} height={px(2)} fill={c} />
-      <rect x={px(12)} y={px(9)} width={px(2)} height={px(2)} fill={c} />
-      <rect x={px(5)} y={px(13)} width={px(2)} height={px(3)} fill={c} />
-      <rect x={px(9)} y={px(13)} width={px(2)} height={px(3)} fill={c} />
-    </svg>
-  );
-}
 
 function PixelPhone({ ringing = false }: { ringing?: boolean }) {
   const [tilt, setTilt] = useState(0);
@@ -1368,141 +444,16 @@ function PixelPhone({ ringing = false }: { ringing?: boolean }) {
   );
 }
 
-function PixelBtn({
-  children,
-  onClick,
-  color = "#00ff88",
-  textColor = "#0a0e1a",
-  size = "md",
-  full = false,
-  disabled = false,
-}: {
-  children: React.ReactNode;
-  onClick?: () => void;
-  color?: string;
-  textColor?: string;
-  size?: "sm" | "md" | "lg";
-  full?: boolean;
-  disabled?: boolean;
-}) {
-  const [pressed, setPressed] = useState(false);
-  const pad = size === "lg" ? "px-6 py-4" : size === "sm" ? "px-3 py-2" : "px-4 py-3";
-  const txt = size === "lg" ? "text-[12px]" : size === "sm" ? "text-[9px]" : "text-[10px]";
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      onMouseDown={() => setPressed(true)}
-      onMouseUp={() => setPressed(false)}
-      onTouchStart={() => setPressed(true)}
-      onTouchEnd={() => setPressed(false)}
-      style={{
-        backgroundColor: disabled ? "#2a3a5c" : color,
-        color: disabled ? "#6b8ba4" : textColor,
-        border: `4px solid ${disabled ? "#1a2340" : "#0a0e1a"}`,
-        boxShadow: pressed || disabled ? "none" : `4px 4px 0px #0a0e1a`,
-        transform: pressed ? "translate(4px, 4px)" : "translate(0,0)",
-        fontFamily: "'Share Tech Mono', monospace",
-        cursor: disabled ? "not-allowed" : "pointer",
-        transition: "transform 0.05s, box-shadow 0.05s",
-        imageRendering: "pixelated",
-      }}
-      className={`${pad} ${txt} ${full ? "w-full" : ""} select-none outline-none`}
-    >
-      {children}
-    </button>
-  );
-}
 
-function PixelPanel({
-  children,
-  className = "",
-  accent = "#2a3a5c",
-}: {
-  children: React.ReactNode;
-  className?: string;
-  accent?: string;
-}) {
-  return (
-    <div
-      style={{
-        backgroundColor: "#111827",
-        border: `4px solid ${accent}`,
-        boxShadow: `4px 4px 0px ${accent}`,
-      }}
-      className={`p-4 ${className}`}
-    >
-      {children}
-    </div>
-  );
-}
-
-function XPBar({ current, max, color = "#00ff88" }: { current: number; max: number; color?: string }) {
-  const pct = Math.min((current / max) * 100, 100);
-  return (
-    <div className="w-full" style={{ border: "3px solid #2a3a5c", backgroundColor: "#0a0e1a", height: 16 }}>
-      <div style={{ width: `${pct}%`, backgroundColor: color, height: "100%", transition: "width 0.5s" }} />
-    </div>
-  );
-}
 
 // `min` is the dimmed opacity. Default 0 (a true blink) suits the scam-warning text,
 // where vanishing is the point. Anything the user is meant to TAP should set a floor so
 // it never fully disappears — an invisible call-to-action reads as "not there yet".
-function Blink({ children, ms = 600, min = 0 }: { children: React.ReactNode; ms?: number; min?: number }) {
-  const [vis, setVis] = useState(true);
-  const reduceMotion = loadAccessibility().reduceMotion
-    || (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
-  useEffect(() => {
-    if (reduceMotion) {
-      setVis(true);
-      return;
-    }
-    const t = setInterval(() => setVis((v) => !v), ms);
-    return () => clearInterval(t);
-  }, [ms, reduceMotion]);
-  return <span style={{ opacity: vis ? 1 : min, transition: `opacity ${Math.round(ms / 3)}ms linear` }}>{children}</span>;
-}
 
-function Scanlines() {
-  return (
-    <div
-      className="pointer-events-none fixed inset-0 z-50"
-      style={{
-        backgroundImage:
-          "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px)",
-      }}
-    />
-  );
-}
 
-function Stars() {
-  const stars = Array.from({ length: 40 }, (_, i) => ({
-    x: ((i * 137.5) % 100).toFixed(1),
-    y: ((i * 73.1) % 100).toFixed(1),
-    s: i % 3 === 0 ? 2 : 1,
-  }));
-  return (
-    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-      {stars.map((s, i) => (
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            left: `${s.x}%`,
-            top: `${s.y}%`,
-            width: s.s,
-            height: s.s,
-            backgroundColor: "#ffffff",
-            opacity: 0.3 + (i % 4) * 0.15,
-            animation: `twinkle ${1.5 + (i % 3) * 0.7}s ease-in-out infinite`,
-            animationDelay: `${(i % 7) * 0.3}s`,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
+
+
+
 
 // On a desktop this draws a phone-shaped mockup. On an actual phone that mockup is the
 // problem: a fixed 390x844 box either overflows a small screen or floats in the middle of
@@ -1516,341 +467,49 @@ function Stars() {
 //
 // Height uses dvh where supported: on mobile browsers 100vh includes the collapsing
 // URL bar, which leaves the bottom nav cut off until the user scrolls.
-const isCompactViewport = () =>
-  typeof window !== "undefined" && (window.innerWidth <= 520 || window.innerHeight <= 520);
 
-function PhoneFrame({ children }: { children: React.ReactNode }) {
-  const [compact, setCompact] = useState(isCompactViewport);
-  useEffect(() => {
-    const onResize = () => setCompact(isCompactViewport());
-    onResize();
-    window.addEventListener("resize", onResize);
-    window.addEventListener("orientationchange", onResize);
-    return () => {
-      window.removeEventListener("resize", onResize);
-      window.removeEventListener("orientationchange", onResize);
-    };
-  }, []);
-
-  const inner: React.CSSProperties = compact
-    ? { width: "100%", height: "100dvh", backgroundColor: "#0a0e1a" }
-    : {
-        width: "min(390px, 100vw)",
-        height: "min(844px, 100dvh)",
-        backgroundColor: "#0a0e1a",
-        border: "6px solid #2a3a5c",
-        boxShadow: "8px 8px 0px #000, 0 0 40px rgba(0,255,136,0.15)",
-      };
-
-  return (
-    <div
-      className="flex items-center justify-center w-full bg-[#05080f]"
-      style={{ height: compact ? "100dvh" : undefined, minHeight: compact ? undefined : "100vh" }}
-    >
-      {/* One delegated listener instead of wiring sound into a button component.
-          PixelBtn is only one of the app's button *looks* — there are ~59 raw <button>
-          elements too, including the bottom nav and the call accept/decline, which is
-          most of what anyone actually presses. Capture phase so a handler that stops
-          propagation can't silence the click. */}
-      <div
-        className="relative overflow-hidden flex flex-col"
-        style={inner}
-        onClickCapture={(e) => {
-          const el = (e.target as HTMLElement | null)?.closest?.("button");
-          if (el && !(el as HTMLButtonElement).disabled) playSfx("press");
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────
 // GEAR ICON
 // ─────────────────────────────────────────────────────────────────────────
-function IconGear({ size = 16, color = "#6b8ba4" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 12 12" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={4} y={0} width={4} height={2} fill={color} />
-      <rect x={0} y={4} width={2} height={4} fill={color} />
-      <rect x={10} y={4} width={2} height={4} fill={color} />
-      <rect x={4} y={10} width={4} height={2} fill={color} />
-      <rect x={2} y={2} width={8} height={8} fill={color} />
-      <rect x={4} y={4} width={4} height={4} fill="#0a0e1a" />
-      <rect x={5} y={5} width={2} height={2} fill={color} />
-    </svg>
-  );
-}
 
 // Speaker with sound waves, or a muted speaker with an X. Pixel-drawn to match the
 // zero-radius look of the rest of the header icons.
-function IconSpeaker({ size = 16, muted = false, color = "#6b8ba4" }: { size?: number; muted?: boolean; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 12 12" style={{ imageRendering: "pixelated", display: "block" }}>
-      {/* speaker cone */}
-      <rect x={1} y={4} width={2} height={4} fill={color} />
-      <rect x={3} y={3} width={1} height={6} fill={color} />
-      <rect x={4} y={2} width={1} height={8} fill={color} />
-      <rect x={2} y={4} width={3} height={4} fill={color} />
-      {muted ? (
-        // red X to the right of the cone
-        <>
-          <rect x={7} y={3} width={1} height={1} fill="#ff2d55" />
-          <rect x={8} y={4} width={1} height={1} fill="#ff2d55" />
-          <rect x={9} y={5} width={1} height={1} fill="#ff2d55" />
-          <rect x={10} y={6} width={1} height={1} fill="#ff2d55" />
-          <rect x={10} y={3} width={1} height={1} fill="#ff2d55" />
-          <rect x={9} y={4} width={1} height={1} fill="#ff2d55" />
-          <rect x={8} y={6} width={1} height={1} fill="#ff2d55" />
-          <rect x={7} y={7} width={1} height={1} fill="#ff2d55" />
-        </>
-      ) : (
-        // two sound waves
-        <>
-          <rect x={7} y={4} width={1} height={4} fill={color} />
-          <rect x={9} y={2} width={1} height={8} fill={color} />
-        </>
-      )}
-    </svg>
-  );
-}
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // APP HEADER
 // ─────────────────────────────────────────────────────────────────────────
-function AppHeader({
-  title,
-  titleColor,
-  hasUnreadNotifications = false,
-  muted = false,
-  onToggleMute,
-  onChat,
-  onNotifications,
-  onSettings,
-}: {
-  title: string;
-  titleColor: string;
-  hasUnreadNotifications?: boolean;
-  muted?: boolean;
-  onToggleMute: () => void;
-  onChat: () => void;
-  onNotifications: () => void;
-  onSettings: () => void;
-}) {
-  return (
-    <div
-      style={{
-        padding: "0 16px",
-        minHeight: 52,
-        backgroundColor: "#0a0e1a",
-        borderBottom: "4px solid #2a3a5c",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        flexShrink: 0,
-      }}
-    >
-      <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 12, color: titleColor }}>
-        {title}
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <button
-          onClick={onToggleMute}
-          aria-label={muted ? "Unmute music" : "Mute music"}
-          aria-pressed={muted}
-          style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }}
-        >
-          <IconSpeaker size={18} muted={muted} color={muted ? "#6b8ba4" : "#00ff88"} />
-        </button>
-        <button
-          onClick={onChat}
-          aria-label="Open family chat"
-          style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }}
-        >
-          <IconChat size={18} color="#4ecdc4" />
-        </button>
-        <button
-          onClick={onNotifications}
-          aria-label="Open notifications"
-          style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center", position: "relative" }}
-        >
-          <IconBell size={18} color="#ffe66d" />
-          {hasUnreadNotifications && (
-            <span
-              style={{
-                position: "absolute",
-                top: 2,
-                right: 2,
-                width: 6,
-                height: 6,
-                backgroundColor: "#ff2d55",
-                border: "1px solid #0a0e1a",
-              }}
-            />
-          )}
-        </button>
-        <button
-          onClick={onSettings}
-          aria-label="Open settings"
-          style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }}
-        >
-          <IconGear size={18} color="#6b8ba4" />
-        </button>
-      </div>
-    </div>
-  );
-}
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // SUB-PAGE HEADER
 // ─────────────────────────────────────────────────────────────────────────
-function SubPageHeader({
-  title,
-  titleColor,
-  onBack,
-}: {
-  title: string;
-  titleColor: string;
-  onBack: () => void;
-}) {
-  return (
-    <div
-      style={{
-        padding: "0 16px",
-        minHeight: 52,
-        backgroundColor: "#0a0e1a",
-        borderBottom: "4px solid #2a3a5c",
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        flexShrink: 0,
-      }}
-    >
-      <button
-        onClick={onBack}
-        aria-label="Go back"
-        style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}
-      >
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#6b8ba4" }}>{"< BACK"}</div>
-      </button>
-      <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 11, color: titleColor }}>{title}</div>
-    </div>
-  );
-}
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // FLAG DATA
 // ─────────────────────────────────────────────────────────────────────────
-type DrillFlag = { id: string; name: string; explanation: string };
-
-const RED_FLAGS: DrillFlag[] = [
-  { id: "impersonation", name: "IMPERSONATION", explanation: "The real IRS contacts you by postal mail first — never by surprise phone call claiming urgent fraud." },
-  { id: "arrest_threat", name: "ARREST THREAT", explanation: "No government agency threatens arrest over the phone. Fake legal threats bypass rational thinking." },
-  { id: "gift_card", name: "GIFT CARD DEMAND", explanation: "No legitimate agency accepts gift cards as payment. Gift cards are untraceable — perfect for scammers." },
-  { id: "urgency", name: "FAKE URGENCY", explanation: "Pressure to act RIGHT NOW stops you verifying anything. Scammers need you panicked, not thinking." },
-  { id: "escalation", name: "FAKE ESCALATION", explanation: "Threatening to send police is a scare tactic. Real law enforcement does not coordinate with phone callers." },
-];
-
-const LIVE_CALL_FLAGS: DrillFlag[] = [
-  { id: "official_impersonation", name: "OFFICIAL IMPERSONATION", explanation: "A caller claiming to be an officer is not proof of identity. End the call and contact the organisation through an independently verified number." },
-  { id: "otp_request", name: "OTP / SECRET REQUEST", explanation: "Legitimate staff should never ask you to read out an OTP, PIN, password or complete card number." },
-  { id: "transfer_pressure", name: "TRANSFER PRESSURE", explanation: "Urgent instructions to move money to a 'safe account' are a common scam pattern. Banks do not protect funds this way." },
-  { id: "urgency", name: "FAKE URGENCY", explanation: "Pressure to act immediately is designed to stop you checking the story with a trusted person or official channel." },
-];
-
-const SMS_FLAGS: DrillFlag[] = [
-  { id: "sms_sender", name: "UNKNOWN SENDER", explanation: "Legitimate delivery companies use official sender IDs, not random numbers or unrecognised names." },
-  { id: "sms_urgency", name: "FAKE URGENCY", explanation: "Deadlines pressure you to act without thinking. Real parcels give you more than a few hours." },
-  { id: "sms_link", name: "SUSPICIOUS LINK", explanation: "Real organisations rarely ask you to update payment details through random shortened links." },
-  { id: "sms_payment", name: "SMALL PAYMENT TRICK", explanation: "Scammers use tiny fees like $1.99 to make the request feel harmless — but they want your card details." },
-  { id: "sms_card", name: "CARD DETAILS REQUEST", explanation: "Never enter card details on a page reached through an SMS link. Use the official website directly." },
-];
-
-const EMAIL_FLAGS: DrillFlag[] = [
-  { id: "email_domain", name: "SUSPICIOUS DOMAIN", explanation: "The sender domain 'campus-secure.example' is not an official institution address. Always verify the full email." },
-  { id: "email_reward", name: "TOO GOOD TO BE TRUE", explanation: "Unexpected cash rewards are a classic lure. Legitimate programmes do not contact you out of the blue." },
-  { id: "email_urgency", name: "FAKE URGENCY", explanation: "Scammers create time pressure — '30 minutes only' — so you act before checking if it is real." },
-  { id: "email_verify", name: "CREDENTIAL THEFT", explanation: "'Verify your account' often leads to fake login pages designed to steal your password and ID." },
-  { id: "email_attachment", name: "DANGEROUS ATTACHMENT", explanation: "ZIP files can hide malware, ransomware, or fake forms. Never open unexpected attachments." },
-  { id: "email_threat", name: "THREAT LANGUAGE", explanation: "Warnings like 'reward will be reassigned' are designed to scare you into acting without thinking." },
-];
-
-const FLAG_MAP: Record<string, DrillFlag> = Object.fromEntries(
-  [...RED_FLAGS, ...SMS_FLAGS, ...EMAIL_FLAGS].map((f) => [f.id, f])
-);
 
 // ─────────────────────────────────────────────────────────────────────────
 // LEADERBOARD DATA
 // ─────────────────────────────────────────────────────────────────────────
-const HALL_OF_FAME = [
-  { rank: 1, name: "PIXEL_HERO", score: 9842, wins: 98, area: "Downtown" },
-  { rank: 2, name: "SCAM_BSTR", score: 8710, wins: 87, area: "Midtown" },
-  { rank: 3, name: "SAFE_KING", score: 7355, wins: 73, area: "Uptown" },
-  { rank: 4, name: "SHIELD_UP", score: 6201, wins: 62, area: "Eastside" },
-  { rank: 5, name: "NO_SCAM_4U", score: 5988, wins: 59, area: "Westside" },
-  { rank: 6, name: "DEFENDER1", score: 4422, wins: 44, area: "Southside" },
-  { rank: 7, name: "IRONWALL", score: 3981, wins: 39, area: "Northside" },
-  { rank: 8, name: "GUARDIAN7", score: 3100, wins: 31, area: "Downtown" },
-];
 
 // ─────────────────────────────────────────────────────────────────────────
 // FURNITURE STORE
 // ─────────────────────────────────────────────────────────────────────────
-const FURNITURE_STORE: FurnitureItem[] = [
-  { id: "grandma-chair",   name: "ARMCHAIR",      sellValue: 80,  memberId: "grandma" },
-  { id: "grandma-shelf",   name: "BOOKSHELF",     sellValue: 60,  memberId: "grandma" },
-  { id: "grandma-lamp",    name: "TABLE LAMP",    sellValue: 55,  memberId: "grandma" },
-  { id: "grandma-frame",   name: "PICTURE FRAME", sellValue: 45,  memberId: "grandma" },
-  { id: "mum-plant",       name: "POT PLANT",     sellValue: 40,  memberId: "mum"     },
-  { id: "mum-desk",        name: "WORK DESK",     sellValue: 90,  memberId: "mum"     },
-  { id: "mum-laptop",      name: "LAPTOP",        sellValue: 110, memberId: "mum"     },
-  { id: "mum-phone",       name: "PHONE",         sellValue: 35,  memberId: "mum"     },
-  { id: "dad-tv",          name: "TV SET",        sellValue: 120, memberId: "dad"     },
-  { id: "dad-couch",       name: "COUCH",         sellValue: 100, memberId: "dad"     },
-  { id: "dad-cabinet",     name: "CABINET",       sellValue: 65,  memberId: "dad"     },
-  { id: "dad-door",        name: "DOOR",          sellValue: 45,  memberId: "dad"     },
-  { id: "dad-shower",      name: "SHOWER",        sellValue: 50,  memberId: "dad"     },
-  { id: "kid-bed",         name: "BED",           sellValue: 70,  memberId: "kid"     },
-  { id: "kid-toybox",      name: "TOY BOX",       sellValue: 30,  memberId: "kid"     },
-  { id: "kid-teddy",       name: "TEDDY BEAR",    sellValue: 25,  memberId: "kid"     },
-  { id: "kid-alarm",       name: "ALARM CLOCK",   sellValue: 20,  memberId: "kid"     },
-];
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // SHOP CATALOGUE — buyable furniture (distinct from FURNITURE_STORE which is
 // pre-owned sellable items). Members buy from here; items land in
 // purchasedItems[memberId] and become placeable via CustomizeScreen.
 // ─────────────────────────────────────────────────────────────────────────
-type ShopItem = {
-  id: string;
-  name: string;
-  cost: number;
-  color: string;
-  // Which shop-item pixel-art to render; distinct namespace from FurnitureIcon.
-  art: "sofa" | "lamp" | "plant" | "tv" | "rug" | "bookshelf" | "bed" | "window";
-};
-
-const SHOP_CATALOGUE: ShopItem[] = [
-  { id: "shop-sofa",      name: "PIXEL SOFA",   cost: 50,  color: "#4ecdc4", art: "sofa" },
-  { id: "shop-lamp",      name: "PIXEL LAMP",   cost: 25,  color: "#ffe66d", art: "lamp" },
-  { id: "shop-plant",     name: "PIXEL PLANT",  cost: 30,  color: "#00ff88", art: "plant" },
-  { id: "shop-tv",        name: "PIXEL TV",     cost: 80,  color: "#ff6b35", art: "tv" },
-  { id: "shop-rug",       name: "PIXEL RUG",    cost: 60,  color: "#ff6b35", art: "rug" },
-  { id: "shop-bookshelf", name: "BOOKSHELF",    cost: 90,  color: "#ff6b35", art: "bookshelf" },
-  { id: "shop-bed",       name: "PIXEL BED",    cost: 120, color: "#4ecdc4", art: "bed" },
-  { id: "shop-window",    name: "PIXEL WINDOW", cost: 200, color: "#4ecdc4", art: "window" },
-];
 
 // Coins and furniture are one piece of game state: persisting only ownership would
 // restore bought items after a reload while also refunding their cost. Keep them in one
 // versioned record so the store and Home always reconstruct the same room.
 const HOME_INVENTORY_KEY = "safespace_home_inventory_v1";
-type HomeInventory = {
-  coins: Record<string, number>;
-  soldItems: string[];
-  purchasedItems: Record<string, string[]>;
-};
 
 function defaultHomeInventory(): HomeInventory {
   return {
@@ -1906,25 +565,12 @@ function saveHomeInventory(inventory: HomeInventory) {
 }
 
 const REWARD_CLAIMS_KEY = "safespace_reward_claims_v1";
-type RewardClaims = {
-  dailyByMember: Record<string, string>;
-  paydayWeek: string | null;
-};
 
-function localDateKey(date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
+// localDateKey
 
 // Payday is a Sunday event, so use the local Sunday that begins the current week.
 // This avoids UTC rollover allowing a second claim near midnight in Singapore.
-function localWeekKey(date = new Date()): string {
-  const sunday = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  sunday.setDate(sunday.getDate() - sunday.getDay());
-  return localDateKey(sunday);
-}
+// localWeekKey
 
 function loadRewardClaims(): RewardClaims {
   const fallback: RewardClaims = { dailyByMember: {}, paydayWeek: null };
@@ -1950,203 +596,18 @@ function saveRewardClaims(claims: RewardClaims) {
 // ─────────────────────────────────────────────────────────────────────────
 // SHOP FURNITURE ART — inline pixel-art renders for each ShopItem.art key
 // ─────────────────────────────────────────────────────────────────────────
-function ShopFurnitureArt({ art, size = 48 }: { art: ShopItem["art"]; size?: number }) {
-  const s = size;
-  switch (art) {
-    case "sofa": return (
-      <svg width={s} height={s * 0.75} viewBox="0 0 12 9" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={1} y={4} width={10} height={4} fill="#4ecdc4" />
-        <rect x={0} y={3} width={2} height={6} fill="#4ecdc4" />
-        <rect x={10} y={3} width={2} height={6} fill="#4ecdc4" />
-        <rect x={1} y={2} width={10} height={3} fill="#4ecdc4" opacity={0.85} />
-        <rect x={2} y={7} width={2} height={2} fill="#0a0e1a" />
-        <rect x={8} y={7} width={2} height={2} fill="#0a0e1a" />
-        <rect x={2} y={3} width={8} height={1} fill="#3aa8a0" />
-      </svg>
-    );
-    case "lamp": return (
-      <svg width={s * 0.66} height={s} viewBox="0 0 8 12" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={1} y={0} width={6} height={4} fill="#ffe66d" />
-        <rect x={0} y={1} width={8} height={2} fill="#ffe66d" />
-        <rect x={2} y={4} width={4} height={1} fill="#ffe66d" opacity={0.7} />
-        <rect x={2} y={2} width={4} height={2} fill="#fff3a0" opacity={0.7} />
-        <rect x={3} y={5} width={2} height={5} fill="#8b5e3c" />
-        <rect x={1} y={10} width={6} height={1} fill="#8b5e3c" />
-        <rect x={0} y={11} width={8} height={1} fill="#6b4020" />
-      </svg>
-    );
-    case "plant": return (
-      <svg width={s} height={s} viewBox="0 0 12 12" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={4} y={0} width={4} height={3} fill="#00ff88" />
-        <rect x={2} y={2} width={8} height={4} fill="#00ff88" />
-        <rect x={3} y={1} width={6} height={4} fill="#00cc66" />
-        <rect x={5} y={5} width={2} height={2} fill="#006633" />
-        <rect x={3} y={7} width={6} height={1} fill="#cd7f32" />
-        <rect x={2} y={8} width={8} height={4} fill="#8b5e3c" />
-        <rect x={3} y={8} width={6} height={3} fill="#a06840" />
-        <rect x={3} y={11} width={6} height={1} fill="#5a3010" />
-      </svg>
-    );
-    case "tv": return (
-      <svg width={s} height={s * 0.75} viewBox="0 0 12 9" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={0} y={0} width={12} height={7} fill="#ff6b35" />
-        <rect x={1} y={1} width={10} height={5} fill="#0a0e1a" />
-        <rect x={2} y={2} width={4} height={2} fill="#4ecdc4" opacity={0.4} />
-        <rect x={7} y={2} width={2} height={1} fill="#ffe66d" opacity={0.5} />
-        <rect x={10} y={1} width={1} height={1} fill="#00ff88" />
-        <rect x={5} y={7} width={2} height={1} fill="#ff6b35" />
-        <rect x={3} y={8} width={6} height={1} fill="#ff6b35" />
-      </svg>
-    );
-    case "rug": return (
-      <svg width={s} height={s * 0.6} viewBox="0 0 12 7" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={1} y={0} width={10} height={7} fill="#ff6b35" />
-        <rect x={0} y={1} width={12} height={5} fill="#ff6b35" />
-        <rect x={2} y={2} width={8} height={3} fill="#ff8855" />
-        <rect x={4} y={3} width={4} height={1} fill="#ffe66d" opacity={0.6} />
-        <rect x={5} y={2} width={2} height={3} fill="#ffe66d" opacity={0.5} />
-        <rect x={0} y={0} width={1} height={1} fill="#ffe66d" />
-        <rect x={11} y={0} width={1} height={1} fill="#ffe66d" />
-        <rect x={0} y={6} width={1} height={1} fill="#ffe66d" />
-        <rect x={11} y={6} width={1} height={1} fill="#ffe66d" />
-      </svg>
-    );
-    case "bookshelf": return (
-      <svg width={s * 0.85} height={s} viewBox="0 0 10 12" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={0} y={0} width={10} height={12} fill="#ff6b35" />
-        <rect x={1} y={1} width={8} height={10} fill="#0a0e1a" />
-        <rect x={0} y={4} width={10} height={1} fill="#ff6b35" />
-        <rect x={0} y={7} width={10} height={1} fill="#ff6b35" />
-        <rect x={1} y={1} width={2} height={3} fill="#4ecdc4" />
-        <rect x={3} y={1} width={1} height={3} fill="#ffe66d" />
-        <rect x={5} y={1} width={2} height={3} fill="#00ff88" />
-        <rect x={7} y={1} width={2} height={3} fill="#c77dff" />
-        <rect x={1} y={5} width={3} height={2} fill="#ffe66d" />
-        <rect x={4} y={5} width={2} height={2} fill="#4ecdc4" />
-        <rect x={6} y={5} width={3} height={2} fill="#ff2d55" opacity={0.7} />
-        <rect x={1} y={8} width={2} height={3} fill="#00ff88" />
-        <rect x={3} y={8} width={4} height={3} fill="#4ecdc4" opacity={0.6} />
-        <rect x={7} y={8} width={2} height={3} fill="#ffe66d" />
-      </svg>
-    );
-    case "bed": return (
-      <svg width={s} height={s * 0.7} viewBox="0 0 12 8" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={0} y={2} width={12} height={5} fill="#4ecdc4" />
-        <rect x={0} y={1} width={2} height={6} fill="#3aa8a0" />
-        <rect x={10} y={1} width={2} height={6} fill="#3aa8a0" />
-        <rect x={2} y={3} width={4} height={2} fill="#ffffff" opacity={0.7} />
-        <rect x={6} y={3} width={4} height={3} fill="#4ecdc4" opacity={0.7} />
-        <rect x={1} y={7} width={2} height={1} fill="#0a0e1a" />
-        <rect x={9} y={7} width={2} height={1} fill="#0a0e1a" />
-      </svg>
-    );
-    case "window": return (
-      <svg width={s * 0.85} height={s} viewBox="0 0 10 12" style={{ imageRendering: "pixelated", display: "block" }}>
-        <rect x={0} y={0} width={10} height={12} fill="#4ecdc4" />
-        <rect x={1} y={1} width={8} height={10} fill="#0a0e1a" />
-        <rect x={1} y={1} width={4} height={4} fill="#4ecdc4" opacity={0.35} />
-        <rect x={5} y={1} width={4} height={4} fill="#4ecdc4" opacity={0.35} />
-        <rect x={1} y={6} width={4} height={5} fill="#4ecdc4" opacity={0.35} />
-        <rect x={5} y={6} width={4} height={5} fill="#4ecdc4" opacity={0.35} />
-        <rect x={4} y={1} width={2} height={10} fill="#4ecdc4" />
-        <rect x={1} y={5} width={8} height={1} fill="#4ecdc4" />
-        <rect x={3} y={2} width={1} height={2} fill="#ffe66d" opacity={0.5} />
-      </svg>
-    );
-  }
-}
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // FLAG TOOLTIP
 // ─────────────────────────────────────────────────────────────────────────
-function FlagTooltip({ flag, onClose }: { flag: DrillFlag; onClose: () => void }) {
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "absolute",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        zIndex: 40,
-        backgroundColor: "rgba(10,14,26,0.95)",
-        borderTop: "3px solid #ff2d55",
-        padding: "12px 16px 16px",
-        backdropFilter: "blur(4px)",
-        animation: "slideUp 0.15s ease-out",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-        <div style={{ flexShrink: 0, marginTop: 2 }}>
-          <IconWarning size={16} color="#ff2d55" />
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ff2d55", marginBottom: 6, letterSpacing: 1 }}>
-            {flag.name}
-          </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#e8f4f8", lineHeight: 1.5 }}>
-            {flag.explanation}
-          </div>
-        </div>
-        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", flexShrink: 0, padding: 4 }}>
-          <IconX size={12} color="#6b8ba4" />
-        </button>
-      </div>
-    </div>
-  );
-}
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // ANNOTATED MESSAGE
 // ─────────────────────────────────────────────────────────────────────────
-type Highlight = { phrase: string; flagId: string };
 
-function AnnotatedMessage({
-  text,
-  highlights = [],
-  onFlagTap,
-}: {
-  text: string;
-  highlights?: Highlight[];
-  onFlagTap: (flagId: string) => void;
-}) {
-  if (highlights.length === 0) return <>{text}</>;
-  const sorted = [...highlights].sort((a, b) => text.indexOf(a.phrase) - text.indexOf(b.phrase));
-  const segments: { text: string; flagId?: string }[] = [];
-  let cursor = 0;
-  for (const h of sorted) {
-    const idx = text.indexOf(h.phrase, cursor);
-    if (idx === -1) continue;
-    if (idx > cursor) segments.push({ text: text.slice(cursor, idx) });
-    segments.push({ text: h.phrase, flagId: h.flagId });
-    cursor = idx + h.phrase.length;
-  }
-  if (cursor < text.length) segments.push({ text: text.slice(cursor) });
-  return (
-    <>
-      {segments.map((seg, i) =>
-        seg.flagId ? (
-          <span
-            key={i}
-            onClick={(e) => { e.stopPropagation(); onFlagTap(seg.flagId!); }}
-            style={{
-              color: "#ff2d55",
-              backgroundColor: "rgba(255,45,85,0.18)",
-              borderBottom: "2px solid #ff2d55",
-              cursor: "pointer",
-              padding: "0 2px",
-              fontWeight: "bold",
-            }}
-          >
-            {seg.text}
-          </span>
-        ) : (
-          <span key={i}>{seg.text}</span>
-        )
-      )}
-    </>
-  );
-}
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN 1: TITLE
@@ -2215,12 +676,6 @@ function TitleScreen({ onNext }: { onNext: () => void }) {
 // pressure, not reciting rules, so this is a look-it-up-if-you-want reference, never
 // the thing standing between someone and a drill.
 // ─────────────────────────────────────────────────────────────────────────
-const SAFETY_TIPS: { num: number; title: string; color: string; text: string }[] = [
-  { num: 1, title: "PAUSE", color: "#ffe66d", text: "Urgency is a signal to slow down, not a reason to act faster." },
-  { num: 2, title: "VERIFY", color: "#4ecdc4", text: "End the conversation and use a number, app or site you find independently." },
-  { num: 3, title: "KEEP SECRETS", color: "#c77dff", text: "Never share OTPs, PINs, passwords or full card details with an unexpected caller." },
-  { num: 4, title: "REPORT", color: "#00ff88", text: "Reporting suspicious messages protects you and helps other people avoid the same lure." },
-];
 
 function SafetyHabitsDropdown() {
   const [open, setOpen] = useState(false);
@@ -2286,8 +741,8 @@ function DrillSelectScreen({
       eyebrow: "PHONE · LIVE",
       description: "Receive a simulated scam call on your verified phone.",
       action: "SET UP CALL",
-      color: "#00ff88",
-      icon: <IconPhone size={24} color="#00ff88" />,
+      color: "#c77dff",
+      icon: <IconPhone size={24} color="#c77dff" />,
       onClick: onRealisticPhone,
     },
     {
@@ -3012,31 +1467,6 @@ function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, schedul
 // ─────────────────────────────────────────────────────────────────────────
 // FAMILY HOME — types & data
 // ─────────────────────────────────────────────────────────────────────────
-type FamilyMember = {
-  id: string; name: string; role: string;
-  level: number; xp: number; xpMax: number;
-  streak: number; timesSafe: number; timesScammed: number;
-  safeThisWeek: boolean; recentDrillResult: "WON" | "LOST" | null;
-  primaryColor: string; roomName: string; roomBg: string;
-  badgeCount: number; badgeTotal: number;
-  coins: number;
-};
-
-const FAMILY_MEMBERS: FamilyMember[] = [
-  { id: "grandma", name: "GRANDMA", role: "ELDER GUARDIAN", level: 12, xp: 3800, xpMax: 4000, streak: 24, timesSafe: 89, timesScammed: 1, safeThisWeek: true, recentDrillResult: "WON", primaryColor: "#c77dff", roomName: "GRANDMA'S ROOM", roomBg: "#100c20", badgeCount: 7, badgeTotal: 9, coins: 1240 },
-  { id: "mum", name: "MUM", role: "SHIELD BEARER", level: 9, xp: 2100, xpMax: 2500, streak: 16, timesSafe: 67, timesScammed: 2, safeThisWeek: true, recentDrillResult: "WON", primaryColor: "#00ff88", roomName: "MUM'S ROOM", roomBg: "#0c1a10", badgeCount: 5, badgeTotal: 9, coins: 850 },
-  { id: "dad", name: "DAD", role: "ROOKIE", level: 4, xp: 890, xpMax: 1200, streak: 0, timesSafe: 23, timesScammed: 7, safeThisWeek: false, recentDrillResult: "LOST", primaryColor: "#4ecdc4", roomName: "DAD'S ROOM", roomBg: "#081420", badgeCount: 2, badgeTotal: 9, coins: 0 },
-  { id: "kid", name: "KID", role: "TRAINEE", level: 3, xp: 450, xpMax: 800, streak: 5, timesSafe: 12, timesScammed: 3, safeThisWeek: true, recentDrillResult: "WON", primaryColor: "#ffe66d", roomName: "KID'S ROOM", roomBg: "#161408", badgeCount: 3, badgeTotal: 9, coins: 300 },
-];
-
-const MEMBER_MAP = Object.fromEntries(FAMILY_MEMBERS.map(m => [m.id, m]));
-
-// Pixi — the AI coach. Not a real family member; synthetic entry for chat rendering.
-const PIXI_MEMBER = {
-  id: "pixi",
-  name: "PIXI",
-  primaryColor: "#00d4ff",
-};
 
 const INITIAL_CHAT: ChatMsg[] = [
   { memberId:"pixi", isPixi:true, text:"Hi family! I'm PIXI, your scam-fighter coach. I'll drop by after drills to share tips and celebrate wins.", time:"9:12 AM" },
@@ -3061,111 +1491,6 @@ function useIdleFrame(fps = 2): number {
     return () => clearInterval(t);
   }, [fps, reduceMotion]);
   return reduceMotion ? 0 : frame;
-}
-
-function CharGrandma({ size = 48, frame = 0 }: { size?: number; frame?: number }) {
-  const u = size / 12;
-  const yo = (frame === 1 || frame === 3) ? u * 0.5 : 0;
-  const xo = (frame === 1 || frame === 2) ? u * 0.3 : -(u * 0.3);
-  const H = size * 1.5;
-  const r = (x: number, y: number, w: number, h: number, c: string, ox = 0, oy = 0) =>
-    <rect key={`${x}${y}${c}`} x={(x + ox) * u} y={(y + oy) * u} width={w * u} height={h * u} fill={c} />;
-  return (
-    <svg width={size} height={H} viewBox={`0 0 ${size} ${H}`} style={{ imageRendering: "pixelated", overflow: "visible" }}>
-      {r(4, 0, 4, 1, "#e0e0e0", xo, yo)}{r(3, 1, 6, 1, "#e0e0e0", xo, yo)}
-      {r(3, 2, 6, 4, "#f4b880", xo, yo)}{r(2, 3, 8, 2, "#f4b880", xo, yo)}
-      {r(4, 3, 1, 1, "#0a0e1a", xo, yo)}{r(7, 3, 1, 1, "#0a0e1a", xo, yo)}
-      {r(4, 5, 1, 1, "#c8704a", xo, yo)}{r(5, 6, 2, 1, "#c8704a", xo, yo)}{r(7, 5, 1, 1, "#c8704a", xo, yo)}
-      <rect x={(3 + xo) * u} y={(3 + yo) * u} width={2 * u} height={2 * u} fill="none" stroke="#2a3a5c" strokeWidth={u * 0.4} key="gl1" />
-      <rect x={(7 + xo) * u} y={(3 + yo) * u} width={2 * u} height={2 * u} fill="none" stroke="#2a3a5c" strokeWidth={u * 0.4} key="gl2" />
-      {r(3, 7, 6, 1, "#c77dff", xo, yo)}
-      {r(2, 8, 8, 5, "#9b4dca", xo, yo)}{r(3, 8, 6, 5, "#c77dff", xo, yo)}
-      {r(1, 11, 10, 3, "#9b4dca", xo, yo)}{r(2, 11, 8, 3, "#c77dff", xo, yo)}
-      {r(1, 8, 2, 3, "#f4b880", xo, yo)}{r(9, 8, 2, 3, "#f4b880", xo, yo)}
-      {r(10, 9, 1, 8, "#8b5e3c")}{r(9, 16, 3, 1, "#8b5e3c")}
-      {r(4, 14, 2, 3, "#7a3a9a", xo, yo)}{r(7, 14, 2, 3, "#7a3a9a", xo, yo)}
-      {r(3, 16, 3, 1, "#5a2a7a", xo, yo)}{r(6, 16, 3, 1, "#5a2a7a", xo, yo)}
-    </svg>
-  );
-}
-
-function CharMum({ size = 48, frame = 0 }: { size?: number; frame?: number }) {
-  const u = size / 12;
-  const yo = (frame === 1 || frame === 3) ? -u * 0.8 : 0;
-  const H = size * 1.5;
-  const r = (x: number, y: number, w: number, h: number, c: string) =>
-    <rect key={`${x}${y}${c}`} x={x * u} y={(y * u) + yo} width={w * u} height={h * u} fill={c} />;
-  return (
-    <svg width={size} height={H} viewBox={`0 0 ${size} ${H}`} style={{ imageRendering: "pixelated", overflow: "visible" }}>
-      {r(5, 0, 2, 1, "#3a2a1a")}{r(4, 1, 4, 1, "#3a2a1a")}
-      {r(2, 3, 2, 3, "#3a2a1a")}{r(8, 3, 2, 3, "#3a2a1a")}
-      {r(3, 2, 6, 5, "#f4b880")}{r(2, 3, 8, 3, "#f4b880")}
-      {r(4, 4, 1, 1, "#0a0e1a")}{r(7, 4, 1, 1, "#0a0e1a")}
-      {r(4, 6, 4, 1, "#c8704a")}{r(5, 7, 2, 1, "#c8704a")}
-      {r(5, 7, 2, 1, "#f4b880")}
-      {r(2, 8, 8, 4, "#006633")}{r(3, 8, 6, 4, "#00ff88")}
-      {r(1, 8, 2, 4, "#f4b880")}{r(9, 8, 2, 4, "#f4b880")}
-      {r(4, 9, 4, 2, "#00cc66")}
-      {r(3, 12, 6, 3, "#1a3a2a")}
-      {r(3, 15, 2, 2, "#1a3a2a")}{r(7, 15, 2, 2, "#1a3a2a")}
-      {r(2, 16, 3, 1, "#0a1a12")}{r(6, 16, 3, 1, "#0a1a12")}
-    </svg>
-  );
-}
-
-function CharDad({ size = 52, frame = 0 }: { size?: number; frame?: number }) {
-  const u = size / 12;
-  const xo = frame < 2 ? u * 1 : -u * 1;
-  const H = size * 1.55;
-  const r = (x: number, y: number, w: number, h: number, c: string) =>
-    <rect key={`${x}${y}${c}`} x={(x + xo) * u} y={y * u} width={w * u} height={h * u} fill={c} />;
-  return (
-    <svg width={size} height={H} viewBox={`0 0 ${size} ${H}`} style={{ imageRendering: "pixelated", overflow: "visible" }}>
-      {r(3, 0, 6, 2, "#2a1a0a")}{r(2, 1, 8, 2, "#2a1a0a")}
-      {r(2, 2, 8, 6, "#e8a060")}{r(1, 3, 10, 4, "#e8a060")}
-      {r(3, 4, 2, 1, "#0a0e1a")}{r(7, 4, 2, 1, "#0a0e1a")}
-      {r(2, 7, 8, 1, "#b06030")}
-      {r(1, 8, 10, 5, "#1a4040")}{r(2, 8, 8, 5, "#4ecdc4")}
-      {r(4, 8, 4, 1, "#ffffff")}
-      {r(0, 8, 2, 5, "#e8a060")}{r(10, 8, 2, 5, "#e8a060")}
-      {r(2, 13, 8, 1, "#0a0e1a")}
-      {r(2, 14, 8, 3, "#2a3a4a")}
-      {r(2, 16, 3, 1, "#2a3a4a")}{r(7, 16, 3, 1, "#2a3a4a")}
-      {r(1, 17, 4, 1, "#1a2030")}{r(6, 17, 4, 1, "#1a2030")}
-    </svg>
-  );
-}
-
-function CharKid({ size = 40, frame = 0 }: { size?: number; frame?: number }) {
-  const u = size / 10;
-  const yo = (frame === 0 || frame === 2) ? -u * 1.2 : u * 0.4;
-  const H = size * 1.6;
-  const r = (x: number, y: number, w: number, h: number, c: string) =>
-    <rect key={`${x}${y}${c}`} x={x * u} y={(y * u) + yo} width={w * u} height={h * u} fill={c} />;
-  return (
-    <svg width={size} height={H} viewBox={`0 0 ${size} ${H}`} style={{ imageRendering: "pixelated", overflow: "visible" }}>
-      {r(2, 0, 1, 3, "#b8900a")}{r(4, 0, 1, 2, "#b8900a")}{r(6, 0, 1, 3, "#b8900a")}{r(8, 0, 1, 2, "#b8900a")}
-      {r(1, 1, 8, 2, "#ffe66d")}
-      {r(2, 2, 6, 5, "#f4c060")}{r(1, 3, 8, 3, "#f4c060")}
-      {r(3, 4, 1, 2, "#0a0e1a")}{r(6, 4, 1, 2, "#0a0e1a")}
-      {r(3, 4, 1, 1, "#ffffff")}{r(6, 4, 1, 1, "#ffffff")}
-      {r(3, 6, 4, 1, "#c8704a")}{r(3, 7, 1, 1, "#c8704a")}{r(6, 7, 1, 1, "#c8704a")}
-      {r(2, 7, 6, 4, "#aa9900")}{r(1, 8, 8, 3, "#ffe66d")}
-      {r(4, 9, 2, 1, "#aa9900")}{r(3, 10, 4, 1, "#aa9900")}
-      {r(0, 8, 2, 3, "#f4c060")}{r(8, 8, 2, 3, "#f4c060")}
-      {r(2, 11, 6, 2, "#2a4aa4")}
-      {r(2, 13, 2, 3, "#f4c060")}{r(6, 13, 2, 3, "#f4c060")}
-      {r(1, 15, 3, 1, "#ffffff")}{r(5, 15, 3, 1, "#ffffff")}
-      {r(1, 16, 4, 1, "#ff2d55")}{r(5, 16, 4, 1, "#ff2d55")}
-    </svg>
-  );
-}
-
-function FamilyChar({ id, size, frame }: { id: string; size?: number; frame?: number }) {
-  if (id === "grandma") return <CharGrandma size={size} frame={frame} />;
-  if (id === "mum") return <CharMum size={size} frame={frame} />;
-  if (id === "dad") return <CharDad size={size} frame={frame} />;
-  return <CharKid size={size} frame={frame} />;
 }
 
 function SafetyBadge({ safe, size = 20 }: { safe: boolean; size?: number }) {
@@ -3272,62 +1597,6 @@ function FurnitureKid() {
       </svg>
     </>
   );
-}
-
-function PurchasedRoomFurniture({ itemIds, accent }: { itemIds: string[]; accent: string }) {
-  const items = itemIds
-    .map(id => SHOP_CATALOGUE.find(item => item.id === id))
-    .filter((item): item is ShopItem => !!item);
-  if (items.length === 0) return null;
-
-  const visible = items.slice(0, 8);
-  const hiddenCount = items.length - visible.length;
-  const itemSize = items.length <= 2 ? 40 : items.length <= 4 ? 32 : 24;
-  const columns = Math.min(items.length, 4);
-  const gap = 4;
-  return (
-    <div
-      data-room-purchased-items={items.length}
-      aria-label={`${items.length} purchased furniture item${items.length === 1 ? "" : "s"} in room`}
-      style={{
-        position: "absolute",
-        right: 38,
-        bottom: 12,
-        width: columns * itemSize + Math.max(0, columns - 1) * gap,
-        display: "grid",
-        gridTemplateColumns: `repeat(${columns}, ${itemSize}px)`,
-        alignItems: "end",
-        justifyContent: "end",
-        gap,
-      }}
-    >
-      {visible.map(item => (
-        <div
-          key={item.id}
-          title={item.name}
-          style={{
-            width: itemSize,
-            height: itemSize,
-            display: "flex",
-            alignItems: "flex-end",
-            justifyContent: "center",
-            filter: `drop-shadow(1px 1px 0 ${memberShadowColor(accent)})`,
-          }}
-        >
-          <ShopFurnitureArt art={item.art} size={itemSize - 2} />
-        </div>
-      ))}
-      {hiddenCount > 0 && (
-        <div style={{ position: "absolute", right: 0, bottom: -16, backgroundColor: "#0a0e1a", border: `2px solid ${accent}`, padding: "1px 4px", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: accent }}>
-          +{hiddenCount}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function memberShadowColor(accent: string) {
-  return accent === "#ffe66d" ? "#6b4f00" : "#0a0e1a";
 }
 
 function DollhouseRoom({ member, onTap, coins, soldItems, purchasedItems }: { member: FamilyMember; onTap: (m: FamilyMember) => void; coins: number; soldItems: string[]; purchasedItems: string[] }) {
@@ -3666,9 +1935,8 @@ function IncomingCallScreen({ onAccept, onDecline }: { activeMemberId: string; o
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: CALL
 // ─────────────────────────────────────────────────────────────────────────
-type ConvLine = { who: string; text: string; highlights?: Highlight[] };
 
-const CONVERSATION: ConvLine[] = [
+const CONVERSATION: ConversationLine[] = [
   { who: "caller", text: "Hello! This is David from the IRS Fraud Division.", highlights: [{ phrase: "IRS Fraud Division", flagId: "impersonation" }] },
   { who: "caller", text: "We detected suspicious activity on your tax account." },
   { who: "you", text: "Uh, okay. What kind of activity?" },
@@ -4355,47 +2623,6 @@ function EmailDownloadScreen({ onCancel, onComplete }: { activeMemberId: string;
 // ─────────────────────────────────────────────────────────────────────────
 // SCAM REASON SECTION
 // ─────────────────────────────────────────────────────────────────────────
-function ScamReasonSection({ flags }: { flags: DrillFlag[] }) {
-  const [expanded, setExpanded] = useState<string | null>(null);
-  return (
-    <div style={{ width: "100%" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, paddingBottom: 8, borderBottom: "3px solid #ff2d55" }}>
-        <IconWarning size={16} color="#ff2d55" />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ff2d55", letterSpacing: 1 }}>WHY IT WAS A SCAM</div>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {flags.map((flag, i) => {
-          const isOpen = expanded === flag.id;
-          return (
-            <button key={flag.id} onClick={() => setExpanded(isOpen ? null : flag.id)} style={{ display: "block", width: "100%", textAlign: "left", background: "none", padding: 0, border: "none", cursor: "pointer" }}>
-              <div style={{ backgroundColor: isOpen ? "rgba(255,45,85,0.10)" : "#111827", border: `3px solid ${isOpen ? "#ff2d55" : "#2a3a5c"}`, boxShadow: isOpen ? "3px 3px 0 #ff2d55" : "none", padding: "12px 14px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ width: 20, height: 20, backgroundColor: "#ff2d55", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#0a0e1a" }}>{i + 1}</span>
-                  </div>
-                  <IconWarning size={14} color={isOpen ? "#ff2d55" : "#6b8ba4"} />
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: isOpen ? "#ff2d55" : "#e8f4f8", flex: 1 }}>{flag.name}</div>
-                  <svg width={10} height={8} viewBox="0 0 5 4" style={{ imageRendering: "pixelated", flexShrink: 0, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
-                    <rect x={0} y={0} width={1} height={1} fill="#6b8ba4" />
-                    <rect x={1} y={1} width={1} height={1} fill="#6b8ba4" />
-                    <rect x={2} y={2} width={1} height={1} fill="#6b8ba4" />
-                    <rect x={3} y={1} width={1} height={1} fill="#6b8ba4" />
-                    <rect x={4} y={0} width={1} height={1} fill="#6b8ba4" />
-                  </svg>
-                </div>
-                {isOpen && (
-                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: "2px solid rgba(255,45,85,0.3)", fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#e8f4f8", lineHeight: 1.6 }}>
-                    {flag.explanation}
-                  </div>
-                )}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: RESULT
@@ -4875,17 +3102,6 @@ function ShopScreen({
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: PROFILE — EDIT button lives inside profile card (per user edit)
 // ─────────────────────────────────────────────────────────────────────────
-const ACHIEVEMENTS = [
-  { id: 1, name: "FIRST BLOCK", unlocked: true, color: "#00ff88" },
-  { id: 2, name: "STREAK X5", unlocked: true, color: "#ff6b35" },
-  { id: 3, name: "IRS SLAYER", unlocked: true, color: "#4ecdc4" },
-  { id: 4, name: "EAGLE EYE", unlocked: true, color: "#ffe66d" },
-  { id: 5, name: "STREAK X10", unlocked: false, color: "#ff6b35" },
-  { id: 6, name: "GRANDMASTER", unlocked: false, color: "#ffe66d" },
-  { id: 7, name: "GHOST MODE", unlocked: false, color: "#c77dff" },
-  { id: 8, name: "TECH SCAM", unlocked: false, color: "#4ecdc4" },
-  { id: 9, name: "ROMANCE DEF", unlocked: false, color: "#ff2d55" },
-];
 
 // ─────────────────────────────────────────────────────────────────────────
 // TOUR: coach-marks over the real UI, narrated by the mascot
@@ -5371,118 +3587,14 @@ function ProfileScreen({
 // ─────────────────────────────────────────────────────────────────────────
 // FAMILY DRILL SCENARIOS
 // ─────────────────────────────────────────────────────────────────────────
-const FAMILY_SCENARIOS: FamilyScenario[] = [
-  {
-    id: 1, targetMember: "Grandma", type: "sms", isScam: true,
-    sender: "SG-SAFEALERT", senderDomain: "SG-SAFEALERT (spoofed sender ID)", senderWarning: "Spoofed sender name. Official banks never lock accounts via SMS links.",
-    timestamp: "2:14 PM",
-    message: "Your bank account has been locked due to suspicious activity. Verify your identity within 15 minutes to avoid suspension: http://secure-bank-verify.example",
-    correctAction: "REPORT AS SCAM", actions: ["REPORT AS SCAM", "CLICK LINK", "REPLY WITH NRIC", "ASK FAMILY FIRST"],
-    clues: [
-      { label: "Urgency", text: "within 15 minutes", explanation: "Scammers pressure you to act fast so you have no time to think." },
-      { label: "Suspicious URL", text: "secure-bank-verify.example", explanation: "Not an official bank domain. Real banks use their own verified domains." },
-      { label: "Fear Tactic", text: "account has been locked", explanation: "Threatening to lock your account is a classic panic-inducing scare tactic." },
-      { label: "Identity Request", text: "Verify your identity", explanation: "Banks never ask you to verify identity through an SMS link." },
-    ],
-    explanation: "This was a phishing SMS. Scammers create panic by claiming your bank account is locked. Always use the official banking app or call the official hotline — never follow a link in an SMS.",
-  },
-  {
-    id: 2, targetMember: "Mum", type: "email", isScam: false,
-    sender: "School Admin", senderEmail: "admin@schoolportal.edu.example", senderDomain: "schoolportal.edu.example", senderWarning: "",
-    subject: "Reminder: Parent Briefing This Friday", timestamp: "9:30 AM",
-    message: "Dear parents, this is a reminder that the parent briefing will be held this Friday at 7PM in the school hall. No action is required. Please log in through the official school portal if you need more details.",
-    correctAction: "MARK AS SAFE", actions: ["MARK AS SAFE", "REPORT AS SCAM", "DELETE IMMEDIATELY", "ASK FAMILY FIRST"],
-    clues: [
-      { label: "No Urgency", text: "No urgent threat or deadline", explanation: "Legitimate messages rarely pressure you into immediate action." },
-      { label: "No Payment", text: "No payment request", explanation: "This email does not ask for money or credentials." },
-      { label: "Legit Domain", text: "schoolportal.edu.example", explanation: "The sender domain matches the official school portal." },
-      { label: "Official Channel", text: "log in through the official school portal", explanation: "Legitimate messages direct you to official channels, not random links." },
-    ],
-    explanation: "This appears legitimate. Not every digital message is a scam. The key is to inspect the sender, the request, and whether the message pressures you into unsafe action.",
-  },
-  {
-    id: 3, targetMember: "Dad", type: "sms", isScam: true,
-    sender: "ParcelExpress", senderDomain: "ParcelExpress (spoofed SMS sender)", senderWarning: "Real couriers contact you through their official app, not payment links.",
-    timestamp: "11:47 AM",
-    message: "Delivery failed. Your parcel will be returned unless you pay a $2.10 redelivery fee today. Update here: http://parcel-express-redeliver.example",
-    correctAction: "REPORT AS SCAM", actions: ["REPORT AS SCAM", "PAY FEE", "ENTER CARD DETAILS", "ASK FAMILY FIRST"],
-    clues: [
-      { label: "Small Fee Trick", text: "$2.10 redelivery fee", explanation: "A tiny fee lowers your guard. The real goal is your full card details." },
-      { label: "Suspicious URL", text: "parcel-express-redeliver.example", explanation: "Real couriers use official branded domains, not random ones." },
-      { label: "Urgency", text: "today", explanation: "Artificial deadlines pressure you into acting without thinking." },
-      { label: "Payment via SMS", text: "Update here", explanation: "Legitimate couriers never ask for payment through SMS links." },
-    ],
-    explanation: "Small payments are used to lower your guard. Scammers use a tiny fee to steal your full card details. Never pay through an SMS link.",
-  },
-  {
-    id: 4, targetMember: "Kid", type: "notification", isScam: true,
-    sender: "GameMaster Rewards", senderEmail: "rewards@gamemaster-freecoins.example", senderDomain: "gamemaster-freecoins.example", senderWarning: "Not an official game domain. Free coin offers are commonly used to steal login credentials.",
-    subject: "You won 10,000 free coins!", timestamp: "4:02 PM",
-    message: "Congratulations! Your account has been selected for 10,000 free coins. Log in now with your username and password to claim before midnight.",
-    correctAction: "ASK FAMILY FIRST", actions: ["ASK FAMILY FIRST", "REPORT AS SCAM", "CLAIM REWARD", "ENTER LOGIN DETAILS"],
-    clues: [
-      { label: "Too-Good-To-Be-True", text: "10,000 free coins", explanation: "Huge free rewards are used to excite you and lower your guard." },
-      { label: "Login Request", text: "Log in now with your username and password", explanation: "Legitimate games never ask for credentials via email or notification." },
-      { label: "Fake Urgency", text: "before midnight", explanation: "Deadlines create panic and rush you into acting without thinking." },
-      { label: "Suspicious Domain", text: "gamemaster-freecoins.example", explanation: "Official game domains are established and verified, not random." },
-    ],
-    explanation: "Free rewards are commonly used to target younger users. Never enter game login details on unknown reward pages. Always ask a trusted adult first.",
-  },
-  {
-    id: 5, targetMember: "Grandma", type: "email", isScam: true,
-    sender: "Billing Department", senderEmail: "service@payment-support.example", senderDomain: "payment-support.example", senderWarning: "Not an official payment domain. Real services use their own verified domains (e.g. paypal.com).",
-    subject: "Invoice for $600.00", timestamp: "2:49 PM",
-    message: "You have been sent an invoice for $600.00. If you do not recognise this charge, call our support team immediately at +1 858-555-7823.",
-    invoiceDetails: { amount: "$600.00", noteFromSeller: "Your account has been accessed unlawfully. A $600.00 transaction will appear within 24 hours. If you do not recognise this transaction, immediately contact us at +1 858-555-7823.", invoiceNumber: "1031" },
-    buttonLabel: "View and Pay Invoice", buttonUrl: "http://payment-support-invoice.example/pay/1031",
-    correctAction: "REPORT AS SCAM", actions: ["REPORT AS SCAM", "CALL THE NUMBER", "PAY INVOICE", "REPLY TO EMAIL"],
-    clues: [
-      { label: "Suspicious Domain", text: "payment-support.example", explanation: "Not an official payment domain. Always check the sender address carefully." },
-      { label: "Fake Support Number", text: "+1 858-555-7823", explanation: "Scammers use phone numbers to pressure victims. Only call official verified numbers." },
-      { label: "Large Fake Invoice", text: "$600.00", explanation: "A large unexpected invoice creates panic and pressures immediate action." },
-      { label: "Scare Tactic", text: "account has been accessed unlawfully", explanation: "Claiming your account was hacked forces an emotional reaction." },
-      { label: "Hidden in Note", text: "Note from seller", explanation: "Scam text is hidden inside the seller note field to look official." },
-    ],
-    explanation: "This scam uses a fake invoice to look official. The phone number is the trap — scammers will pressure you on the call. Never call numbers from unexpected invoices.",
-  },
-  {
-    id: 6, targetMember: "Mum", type: "email", isScam: true,
-    sender: "Luke Johnson", senderEmail: "luke.json8000@gmail.example", senderDomain: "gmail.example", senderWarning: "Using a suspicious personal email instead of a verified work account. The document link points to a fake domain.",
-    subject: "Luke Johnson shared a document", timestamp: "2:46 PM",
-    message: "Luke Johnson has invited you to edit the following document: 2026 Department Budget. Open the document to review.",
-    buttonLabel: "OPEN DOCUMENT", buttonUrl: "http://drive-google-docs-login.example/d/6374",
-    correctAction: "REPORT AS SCAM", actions: ["REPORT AS SCAM", "OPEN DOCUMENT", "REQUEST ACCESS", "MARK AS SAFE"],
-    clues: [
-      { label: "Lookalike URL", text: "drive-google-docs-login.example", explanation: "Real Google Docs uses docs.google.com. Fake domains mimic the style to fool you." },
-      { label: "Unexpected Document", text: "2026 Department Budget", explanation: "If you weren't expecting a shared document, be very cautious." },
-      { label: "Unknown Sender", text: "luke.json8000@gmail.example", explanation: "A personal email instead of a professional/work account is a red flag." },
-      { label: "Phishing Button", text: "OPEN DOCUMENT", explanation: "The button leads to a fake login page designed to steal your credentials." },
-    ],
-    explanation: "This is a document-sharing phishing attempt. The email looks like a normal shared document, but the URL reveals a fake domain designed to steal credentials.",
-  },
-];
 
 // Maps FamilyScenario.targetMember (title case) to member id
-const FAMILY_NAME_TO_ID: Record<string, string> = {
-  "Grandma": "grandma",
-  "Mum": "mum",
-  "Dad": "dad",
-  "Kid": "kid",
-};
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // PIXEL TOGGLE / RADIO
 // ─────────────────────────────────────────────────────────────────────────
-function PixelToggle({ on, onToggle, color = "#00ff88" }: { on: boolean; onToggle: () => void; color?: string }) {
-  return (
-    <button onClick={onToggle} style={{ width: 52, height: 24, backgroundColor: on ? color : "#2a3a5c", border: `3px solid ${on ? "#0a0e1a" : "#1a2340"}`, boxShadow: on ? `3px 3px 0 #0a0e1a` : "2px 2px 0 #111", cursor: "pointer", position: "relative", transition: "background-color 0.15s", flexShrink: 0 }}>
-      <div style={{ position: "absolute", top: 2, left: on ? 28 : 2, width: 16, height: 14, backgroundColor: on ? "#0a0e1a" : "#6b8ba4", transition: "left 0.15s" }} />
-      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: on ? "flex-start" : "flex-end", padding: "0 5px" }}>
-        <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: on ? "#0a0e1a" : "#4a5568" }}>{on ? "ON" : "OFF"}</span>
-      </div>
-    </button>
-  );
-}
+
 
 function ToggleSwitchB({ on, onToggle, color = "#00ff88" }: { on: boolean; onToggle: () => void; color?: string }) {
   return (
@@ -5492,102 +3604,22 @@ function ToggleSwitchB({ on, onToggle, color = "#00ff88" }: { on: boolean; onTog
   );
 }
 
-function PixelRadio({ options, value, onChange }: { options: string[]; value: string; onChange: (v: string) => void }) {
-  return (
-    <div className="flex flex-col gap-3">
-      {options.map((opt) => (
-        <button key={opt} onClick={() => onChange(opt)} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>
-          <div style={{ width: 14, height: 14, border: `3px solid ${value === opt ? "#00ff88" : "#2a3a5c"}`, backgroundColor: value === opt ? "#00ff88" : "transparent", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {value === opt && <div style={{ width: 6, height: 6, backgroundColor: "#0a0e1a" }} />}
-          </div>
-          <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: value === opt ? "#00ff88" : "#6b8ba4" }}>{opt}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // INSPECTABLE LINK
 // ─────────────────────────────────────────────────────────────────────────
-function InspectableLink({ label, url, onReveal, showWarning = true }: { label: string; url: string; onReveal?: () => void; showWarning?: boolean }) {
-  const [revealed, setRevealed] = useState(false);
-  return (
-    <div>
-      <button onClick={() => { setRevealed((r) => !r); if (!revealed) onReveal?.(); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-        <span style={{ fontFamily: "sans-serif", fontSize: 13, color: "#1a73e8", textDecoration: "underline" }}>{label}</span>
-      </button>
-      {revealed && (
-        <div style={{ marginTop: 6, backgroundColor: showWarning ? "rgba(255,45,85,0.08)" : "rgba(78,205,196,0.08)", border: `2px solid ${showWarning ? "#ff2d55" : "#4ecdc4"}`, padding: "8px 10px", animation: "slideUp 0.2s ease-out" }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: showWarning ? "#ff2d55" : "#4ecdc4", marginBottom: 4 }}>ACTUAL URL:</div>
-          <div style={{ fontFamily: "monospace", fontSize: 13, color: showWarning ? "#ff6b35" : "#4ecdc4", wordBreak: "break-all" }}>{url}</div>
-          {showWarning && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#ff2d55", marginTop: 4 }}>⚠ SUSPICIOUS DOMAIN — DO NOT VISIT</div>}
-        </div>
-      )}
-    </div>
-  );
-}
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // SENDER INSPECT PANEL
 // ─────────────────────────────────────────────────────────────────────────
-function SenderInspectPanel({ scenario, onClose, showWarning = true }: { scenario: FamilyScenario; onClose: () => void; showWarning?: boolean }) {
-  return (
-    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 50, backgroundColor: "#111827", border: "4px solid #4ecdc4", boxShadow: "0 -4px 0 #4ecdc4", animation: "slideUp 0.25s ease-out" }}>
-      <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "3px solid #2a3a5c" }}>
-        <div className="flex items-center gap-2"><IconEyeInspect size={12} color="#4ecdc4" /><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#4ecdc4" }}>SENDER INFO</div></div>
-        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><IconX size={14} color="#6b8ba4" /></button>
-      </div>
-      <div className="px-4 py-3 flex flex-col gap-3">
-        <div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginBottom: 3 }}>DISPLAY NAME</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#e8f4f8" }}>{scenario.sender}</div>
-        </div>
-        {scenario.senderEmail && (
-          <div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginBottom: 3 }}>EMAIL ADDRESS</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35" }}>{scenario.senderEmail}</div>
-          </div>
-        )}
-        {scenario.senderDomain && (
-          <div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginBottom: 3 }}>DOMAIN</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: scenario.isScam ? "#ff2d55" : "#00ff88" }}>{scenario.senderDomain}</div>
-          </div>
-        )}
-        {showWarning && scenario.senderWarning && (
-          <div style={{ backgroundColor: "rgba(255,45,85,0.1)", border: "2px solid #ff2d55", padding: "8px 10px" }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55", lineHeight: 1.8 }}>{scenario.senderWarning}</div>
-          </div>
-        )}
-        {showWarning && !scenario.isScam && (
-          <div style={{ backgroundColor: "rgba(0,255,136,0.1)", border: "2px solid #00ff88", padding: "8px 10px" }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#00ff88", lineHeight: 1.8 }}>DOMAIN APPEARS LEGITIMATE</div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // CLUE TOOLTIP
 // ─────────────────────────────────────────────────────────────────────────
-function ClueTooltip({ clue, onClose }: { clue: FamilyClue; onClose: () => void }) {
-  return (
-    <div style={{ position: "absolute", top: "25%", left: 12, right: 12, zIndex: 60, backgroundColor: "#111827", border: "4px solid #ffe66d", boxShadow: "4px 4px 0 #ffe66d", animation: "slideUp 0.2s ease-out" }}>
-      <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "3px solid #2a3a5c" }}>
-        <div className="flex items-center gap-2"><IconBulb size={12} color="#ffe66d" /><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d" }}>CLUE</div></div>
-        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><IconX size={14} color="#6b8ba4" /></button>
-      </div>
-      <div className="px-4 py-3 flex flex-col gap-2">
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ff6b35" }}>{clue.label}</div>
-        <div style={{ backgroundColor: "rgba(255,107,53,0.15)", border: "2px solid #ff6b35", padding: "6px 8px", fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35" }}>"{clue.text}"</div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#e8f4f8", lineHeight: 1.6 }}>{clue.explanation}</div>
-      </div>
-    </div>
-  );
-}
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // ANIMATED FAMILY CHARACTER
@@ -5731,7 +3763,6 @@ function FamilyDrillIntroScreen({ onStart, onBack }: { onStart: () => void; onBa
 // already praise that same instinct ("Good thinking!"), so the family drill has to agree.
 // It's a partial win: safe framing, half XP, no coin penalty, plus a nudge toward the
 // ideal action. Only "correct" counts toward the family-safe tally.
-type FamilyOutcome = "correct" | "cautious" | "wrong";
 
 function familyOutcome(scenario: FamilyScenario, action: string | null): FamilyOutcome {
   if (action === null) return "wrong";
@@ -6689,16 +4720,7 @@ function iconForNotifKind(kind: NotificationKind): { icon: React.ReactNode; acce
   return { icon: <IconStar size={14} color="#ffe66d" />, accent: "#ffe66d" };
 }
 
-function formatNotifTimestamp(ts: number): string {
-  const secs = Math.floor((Date.now() - ts) / 1000);
-  if (secs < 60) return "JUST NOW";
-  const mins = Math.floor(secs / 60);
-  if (mins < 60) return `${mins}M AGO`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}H AGO`;
-  const days = Math.floor(hrs / 24);
-  return `${days}D AGO`;
-}
+// formatNotifTimestamp
 
 function NotificationsScreen({
   notifications, onOpen, onMarkAllRead, onBack,
@@ -7000,38 +5022,6 @@ function PaydayScreen({ coins, claimedThisWeek, onCollect, onClose }: { coins: R
 // ─────────────────────────────────────────────────────────────────────────
 // BOTTOM NAV
 // ─────────────────────────────────────────────────────────────────────────
-function BottomNav({ activeTab, drillActive = false, onTab, onDrillSelect }: { activeTab: Tab; drillActive?: boolean; onTab: (t: Tab) => void; onDrillSelect: () => void }) {
-  const leftItems: { tab: Tab; icon: React.ReactNode; label: string; activeColor: string }[] = [
-    { tab: "home", icon: <IconHouse size={18} color={!drillActive && activeTab === "home" ? "#00ff88" : "#52647e"} />, label: "HOME", activeColor: "#00ff88" },
-    { tab: "leaderboard", icon: <IconTrophy size={18} color={!drillActive && activeTab === "leaderboard" ? "#ffe66d" : "#52647e"} />, label: "RANKS", activeColor: "#ffe66d" },
-  ];
-  const rightItems: { tab: Tab; icon: React.ReactNode; label: string; activeColor: string }[] = [
-    { tab: "store", icon: <IconStore size={18} color={!drillActive && activeTab === "store" ? "#c77dff" : "#52647e"} />, label: "STORE", activeColor: "#c77dff" },
-    { tab: "profile", icon: <IconPerson size={18} color={!drillActive && activeTab === "profile" ? "#4ecdc4" : "#52647e"} />, label: "PROFILE", activeColor: "#4ecdc4" },
-  ];
-  return (
-    <div data-tour="bottom-nav" className="flex items-stretch" style={{ borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a", minHeight: 68, flexShrink: 0 }}>
-      {leftItems.map((item) => (
-        <button key={item.tab} onClick={() => onTab(item.tab)} className="flex-1 flex flex-col items-center justify-center gap-1" style={{ background: "none", border: "none", borderTop: !drillActive && activeTab === item.tab ? `4px solid ${item.activeColor}` : "4px solid transparent", cursor: "pointer", paddingTop: 6 }}>
-          {item.icon}
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: !drillActive && activeTab === item.tab ? item.activeColor : "#52647e" }}>{item.label}</div>
-        </button>
-      ))}
-      <div data-tour="nav-drill" className="flex items-center justify-center px-1" style={{ flexShrink: 0 }}>
-        <button aria-current={drillActive ? "page" : undefined} onClick={onDrillSelect} style={{ backgroundColor: "#00ff88", border: drillActive ? "4px solid #e8f4f8" : "4px solid #0a0e1a", boxShadow: "0 -4px 0 #006633, 4px 0 0 #006633, -4px 0 0 #006633", cursor: "pointer", width: 58, height: 58, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, marginBottom: 6 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 14, color: "#0a0e1a", lineHeight: 1 }}>▶</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#0a0e1a" }}>DRILL</div>
-        </button>
-      </div>
-      {rightItems.map((item) => (
-        <button key={item.tab} onClick={() => onTab(item.tab)} className="flex-1 flex flex-col items-center justify-center gap-1" style={{ background: "none", border: "none", borderTop: !drillActive && activeTab === item.tab ? `4px solid ${item.activeColor}` : "4px solid transparent", cursor: "pointer", paddingTop: 6 }}>
-          {item.icon}
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: !drillActive && activeTab === item.tab ? item.activeColor : "#52647e" }}>{item.label}</div>
-        </button>
-      ))}
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────
 // ROUTE GROUPS
@@ -7138,57 +5128,6 @@ export default function App() {
 
   const [familyRoundIndex, setFamilyRoundIndex] = useState(0);
   const [familyAnswers, setFamilyAnswers] = useState<{ scenarioId: number; action: string; outcome: FamilyOutcome; foundClues: number[] }[]>([]);
-
-  // Player name + avatar, persisted locally. Seeded once from storage.
-  const [profile, setProfileState] = useState<PlayerProfile>(loadProfile);
-  const updateProfile = (patch: Partial<PlayerProfile>) =>
-    setProfileState((prev) => { const next = { ...prev, ...patch }; saveProfile(next); return next; });
-
-  // A verified account owns the canonical drill name. Keep the cosmetic profile and
-  // registration prefill in sync with it, but retain local-only naming in demo/offline use.
-  useEffect(() => {
-    if (!sessionToken()) return;
-    apiGet<any>("/api/me").then((data) => {
-      const serverName = data?.name ?? data?.user?.name ?? data?.profile?.name;
-      if (typeof serverName !== "string" || !serverName.trim()) return;
-      const clean = serverName.trim();
-      updateProfile({ name: clean });
-      saveContact({ ...loadContact(), name: clean });
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const updateVerifiedName = async (name: string): Promise<NameUpdateResult> => {
-    const clean = name.trim();
-    if (!clean) return { ok: false, error: "Name is required." };
-    if (!sessionToken()) {
-      updateProfile({ name: clean });
-      saveContact({ ...loadContact(), name: clean });
-      return { ok: true, name: clean };
-    }
-    try {
-      const response = await fetch("/api/me/name", {
-        method: "POST",
-        headers: { "content-type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ name: clean }),
-      });
-      handleApiAuth(response);
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        return { ok: false, error: data.error || "Could not update your name." };
-      }
-      const canonical = data?.name ?? data?.user?.name ?? data?.profile?.name ?? clean;
-      const savedName = String(canonical).trim();
-      updateProfile({ name: savedName });
-      saveContact({ ...loadContact(), name: savedName });
-      return { ok: true, name: savedName };
-    } catch {
-      return {
-        ok: false,
-        error: "Could not reach the server. Your drill name was not changed.",
-      };
-    }
-  };
 
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   // Persist settings so the drill schedule (and every other toggle) survives a reload.
@@ -7832,6 +5771,74 @@ export default function App() {
   // a user-initiated call or email.
   const drillWin = drillWindowStatus(settings);
   const realDrillBlocked = false;
+
+  // Player name + avatar, persisted locally. Seeded once from storage.
+  const [profile, setProfileState] = useState<PlayerProfile>(loadProfile);
+  const updateProfile = (patch: Partial<PlayerProfile>) =>
+    setProfileState((prev) => { const next = { ...prev, ...patch }; saveProfile(next); return next; });
+
+  // A verified account owns the canonical drill name. Keep the cosmetic profile and
+  // registration prefill in sync with it, but retain local-only naming in demo/offline use.
+  useEffect(() => {
+    if (!sessionToken()) return;
+    apiGet<any>("/api/me").then((data) => {
+      const serverName = data?.name ?? data?.user?.name ?? data?.profile?.name;
+      if (typeof serverName !== "string" || !serverName.trim()) return;
+      const clean = serverName.trim();
+      updateProfile({ name: clean });
+      saveContact({ ...loadContact(), name: clean });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const updateVerifiedName = async (
+    name: string,
+  ): Promise<NameUpdateResult> => {
+    const clean = name.trim();
+
+    if (!clean) {
+      return {
+        ok: false,
+        error: "Name is required.",
+      };
+    }
+
+    // Offline or unregistered profile.
+    if (!sessionToken()) {
+      updateProfile({
+        name: clean,
+      });
+
+      saveContact({
+        ...loadContact(),
+        name: clean,
+      });
+
+      return {
+        ok: true,
+        name: clean,
+      };
+    }
+
+    // Registered profile: server owns the canonical drill name.
+    const result =
+      await updateVerifiedNameRequest(clean);
+
+    if (!result.ok || !result.name) {
+      return result;
+    }
+
+    updateProfile({
+      name: result.name,
+    });
+
+    saveContact({
+      ...loadContact(),
+      name: result.name,
+    });
+
+    return result;
+  };
 
   return (
     <div className={[
