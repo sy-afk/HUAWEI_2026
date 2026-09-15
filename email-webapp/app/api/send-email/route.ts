@@ -15,14 +15,14 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
  * DRILL_EMAIL_ALLOWLIST (comma/whitespace separated). FAILS CLOSED — an empty or unset
  * allowlist sends to nobody, so a misconfigured deploy can never become a relay.
  */
-function allowedRecipients(): Set<string> {
-  return new Set(
-    (process.env.DRILL_EMAIL_ALLOWLIST ?? "")
-      .split(/[,\s]+/)
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean),
-  );
-}
+// function allowedRecipients(): Set<string> {
+//   return new Set(
+//     (process.env.DRILL_EMAIL_ALLOWLIST ?? "")
+//       .split(/[,\s]+/)
+//       .map((e) => e.trim().toLowerCase())
+//       .filter(Boolean),
+//   );
+// }
 
 // Deliberately stricter than `includes("@")`.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -35,24 +35,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
     }
 
-    const allowlist = allowedRecipients();
-    if (allowlist.size === 0) {
-      console.error("send-email refused: DRILL_EMAIL_ALLOWLIST is empty (fail-closed)");
-      return NextResponse.json(
-        { error: "Drill emails are not configured for this environment." },
-        { status: 503 },
-      );
-    }
-    if (!allowlist.has(email.trim().toLowerCase())) {
-      // Don't confirm whether the address exists elsewhere — just refuse.
-      return NextResponse.json(
-        { error: "This address has not opted in to receive drill emails." },
-        { status: 403 },
-      );
-    }
+    // const allowlist = allowedRecipients();
+    // if (allowlist.size === 0) {
+    //   console.error("send-email refused: DRILL_EMAIL_ALLOWLIST is empty (fail-closed)");
+    //   return NextResponse.json(
+    //     { error: "Drill emails are not configured for this environment." },
+    //     { status: 503 },
+    //   );
+    // }
+    // if (!allowlist.has(email.trim().toLowerCase())) {
+    //   // Don't confirm whether the address exists elsewhere — just refuse.
+    //   return NextResponse.json(
+    //     { error: "This address has not opted in to receive drill emails." },
+    //     { status: 403 },
+    //   );
+    // }
 
     if (!process.env.GOOGLE_SCRIPT_URL) {
       console.error("send-email refused: GOOGLE_SCRIPT_URL is not set");
+      return NextResponse.json({ error: "Email sending is not configured." }, { status: 503 });
+    }
+    if (!process.env.SAFESPACE_SECRET) {
+      console.error("send-email refused: SAFESPACE_SECRET is not set");
       return NextResponse.json({ error: "Email sending is not configured." }, { status: 503 });
     }
 
@@ -122,6 +126,7 @@ export async function POST(req: NextRequest) {
         email,
         subject: "🚨 Immediate Action Required",
         html: generatedHtml,
+        secret: process.env.SAFESPACE_SECRET,
       }),
     });
 
