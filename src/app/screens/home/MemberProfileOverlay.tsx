@@ -1,53 +1,11 @@
-import { useState, useEffect } from "react";
 import type { FamilyMember } from "../../types/family";
 import { FamilyChar } from "../../components/avatars";
 import { XPBar, PixelBtn } from "../../components/ui";
-import { IconX, IconCoin, IconShield, IconBulb, IconBadge } from "../../components/icons";
-import { loadAccessibility } from "../../services/storage";
-
-function useIdleFrame(fps = 2): number {
-  const [frame, setFrame] = useState(0);
-  const reduceMotion = loadAccessibility().reduceMotion
-    || (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
-  useEffect(() => {
-    if (reduceMotion) {
-      setFrame(0);
-      return;
-    }
-    const t = setInterval(() => setFrame((f) => (f + 1) % 4), Math.floor(1000 / fps));
-    return () => clearInterval(t);
-  }, [fps, reduceMotion]);
-  return reduceMotion ? 0 : frame;
-}
-
-function IconFlame({ size = 24, color = "#ff6b35" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 10 12" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={3} y={9} width={4} height={3} fill={color} />
-      <rect x={2} y={8} width={6} height={2} fill={color} />
-      <rect x={1} y={6} width={8} height={3} fill={color} />
-      <rect x={2} y={4} width={6} height={3} fill={color} />
-      <rect x={4} y={2} width={2} height={3} fill={color} />
-      <rect x={3} y={1} width={4} height={2} fill={color} />
-      <rect x={4} y={0} width={2} height={2} fill={color} />
-      <rect x={3} y={7} width={4} height={2} fill="#ffe66d" />
-      <rect x={4} y={5} width={2} height={3} fill="#ffe66d" />
-    </svg>
-  );
-}
-
-function IconLock({ size = 16, color = "#6b8ba4" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 8 10" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={2} y={0} width={4} height={1} fill={color} />
-      <rect x={1} y={1} width={6} height={3} fill={color} />
-      <rect x={0} y={4} width={8} height={6} fill={color} />
-      <rect x={2} y={1} width={4} height={2} fill="#0a0e1a" />
-      <rect x={3} y={6} width={2} height={2} fill="#0a0e1a" />
-      <rect x={3} y={8} width={2} height={1} fill="#0a0e1a" />
-    </svg>
-  );
-}
+import { 
+  IconBadge, IconBulb, IconCoin,  
+  IconFlame, IconLock, IconShield, IconX
+} from "../../components/icons";
+import { useIdleFrame } from "../../hooks/useIdleFrame";
 
 export function MemberProfileOverlay({
   member, onClose, onCustomize, coins,

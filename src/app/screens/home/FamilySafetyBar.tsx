@@ -11,29 +11,29 @@ export function FamilySafetyBar({ coins }: { coins: Record<string, number> }) {
         <IconShield size={32} color={allSafe ? "#00ff88" : "#ff6b35"} />
       </div>
       <div style={{ flex: 1 }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: allSafe ? "#00ff88" : "#ff6b35", marginBottom: 4 }}>FAMILY SAFETY</div>
-        <div style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: 12, color: "#6b8ba4", lineHeight: 1.4 }}>
+        <div style={{ fontFamily: "var(--font-family-ui)", fontSize: "var(--font-ui-label)", color: allSafe ? "#00ff88" : "#ff6b35", marginBottom: 4, letterSpacing: 0.5, }}>FAMILY SAFETY</div>
+        <div style={{ fontFamily: "var(--font-family-ui)", fontSize: "var(--font-ui-body)", color: "#6b8ba4", lineHeight: 1.4 }}>
           {safeCount}/{FAMILY_MEMBERS.length} members safe this week
         </div>
-        <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
           {FAMILY_MEMBERS.map((m) => (
-            <div key={m.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+            <div key={m.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
               <div style={{ filter: `drop-shadow(0 0 3px ${m.safeThisWeek ? "#00ff88" : "#ff2d55"})` }}>
-                <IconShield size={10} color={m.safeThisWeek ? "#00ff88" : "#ff2d55"} />
+                <IconShield size={12} color={m.safeThisWeek ? "#00ff88" : "#ff2d55"} />
               </div>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4" }}>{m.name.slice(0, 3)}</div>
+              <div style={{ fontFamily: "var(--font-family-ui)", fontSize: "var(--font-ui-micro)", color: "#6b8ba4" }}>{m.name.slice(0, 3)}</div>
             </div>
           ))}
         </div>
       </div>
-      <div style={{ backgroundColor: "#0a0e1a", border: "3px solid #2a3a5c", padding: "6px 10px", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <IconCoin size={12} color="#ffe66d" />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: totalCoins >= 0 ? "#ffe66d" : "#ff2d55" }}>
+      <div style={{ backgroundColor: "#0a0e1a", border: "3px solid #2a3a5c", padding: "7px 10px", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <IconCoin size={14} color="#ffe66d" />
+          <div style={{ fontFamily: "var(--font-family-ui)", fontSize: "var(--font-ui-subheading)", color: totalCoins >= 0 ? "#ffe66d" : "#ff2d55" }}>
             {totalCoins >= 0 ? "" : "-"}{Math.abs(totalCoins)}
           </div>
         </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 6, color: "#6b8ba4" }}>FAMILY</div>
+        <div style={{ fontFamily: "var(--font-family-ui)", fontSize: "var(--font-ui-micro)", color: "#6b8ba4" }}>FAMILY</div>
       </div>
     </div>
   );

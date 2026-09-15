@@ -10,7 +10,7 @@ export function HouseRoof() {
         <rect x={278} y={8} width={24} height={6} fill="#3a4a6c" />
         <rect x={283} y={2} width={4} height={4} fill="#4a5a7c" opacity={0.5} />
       </svg>
-      <div style={{ position: "absolute", bottom: 6, left: "50%", transform: "translateX(-50%)", fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#4ecdc4", letterSpacing: 2, whiteSpace: "nowrap" }}>
+      <div style={{ position: "absolute", bottom: 6, left: "50%", transform: "translateX(-50%)", fontFamily: "var(--font-family-ui)", fontSize: "var(--font-ui-caption)", color: "#4ecdc4", letterSpacing: 2, whiteSpace: "nowrap" }}>
         FAMILY HOME
       </div>
     </div>

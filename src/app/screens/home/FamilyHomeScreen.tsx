@@ -41,7 +41,7 @@ export function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCus
           ))}
         </div>
         <div style={{ height: 24, backgroundColor: "#1a2340", borderTop: "4px solid #2a3a5c", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#2a3a5c", letterSpacing: 3 }}>████████████████████████████</div>
+          <div aria-hidden="true" style={{ fontFamily: "var(--font-family-ui)", fontSize: "var(--font-ui-micro)", color: "#2a3a5c", letterSpacing: 3 }}>████████████████████████████</div>
         </div>
         <div style={{ padding: "16px 16px 8px", backgroundColor: "#0a0e1a" }}>
           <div data-tour="start-drill"><PixelBtn onClick={onFamilyDrill} color="#00ff88" size="lg" full>[ START FAMILY DRILL ]</PixelBtn></div>
@@ -57,7 +57,7 @@ export function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCus
           <div style={{ height: 10 }} />
           <PixelBtn onClick={onTutorial} color="#1a2340" textColor="#6b8ba4" size="sm" full>HOW TO PLAY</PixelBtn>
         </div>
-        <div style={{ padding: "0 16px 24px", backgroundColor: "#0a0e1a", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", textAlign: "center" }}>
+        <div style={{ padding: "0 16px 24px", backgroundColor: "#0a0e1a", fontFamily: "var(--font-family-ui)", fontSize: "var(--font-ui-caption)", color: "#6b8ba4", textAlign: "center", lineHeight: 1.5, }}>
           Train together. Protect the whole household.
         </div>
       </div>
