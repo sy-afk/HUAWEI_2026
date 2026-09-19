@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export function PixelBtn({
+export function PixelButton({
   children,
   onClick,
   color = "#00ff88",
@@ -19,7 +19,11 @@ export function PixelBtn({
 }) {
   const [pressed, setPressed] = useState(false);
   const pad = size === "lg" ? "px-6 py-4" : size === "sm" ? "px-3 py-2" : "px-4 py-3";
-  const txt = size === "lg" ? "text-[12px]" : size === "sm" ? "text-[9px]" : "text-[10px]";
+  const fontSize = {
+    sm: "var(--font-ui-caption)",
+    md: "var(--font-ui-label)",
+    lg: "var(--font-ui-body)",
+  }[size];
   return (
     <button
       onClick={onClick}
@@ -34,12 +38,14 @@ export function PixelBtn({
         border: `4px solid ${disabled ? "#1a2340" : "#0a0e1a"}`,
         boxShadow: pressed || disabled ? "none" : `4px 4px 0px #0a0e1a`,
         transform: pressed ? "translate(4px, 4px)" : "translate(0,0)",
-        fontFamily: "'Share Tech Mono', monospace",
+        fontFamily: "var(--font-family-ui)",
+        fontSize,
+        lineHeight: 1.4,
         cursor: disabled ? "not-allowed" : "pointer",
         transition: "transform 0.05s, box-shadow 0.05s",
         imageRendering: "pixelated",
       }}
-      className={`${pad} ${txt} ${full ? "w-full" : ""} select-none outline-none`}
+      className={`${pad} ${full ? "w-full" : ""} select-none outline-none`}
     >
       {children}
     </button>

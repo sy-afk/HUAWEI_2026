@@ -33,7 +33,7 @@ export function PhoneFrame({ children }: { children: React.ReactNode }) {
       style={{ height: compact ? "100dvh" : undefined, minHeight: compact ? undefined : "100vh" }}
     >
       {/* One delegated listener instead of wiring sound into a button component.
-          PixelBtn is only one of the app's button *looks* — there are ~59 raw <button>
+          PixelButton is only one of the app's button *looks* — there are ~59 raw <button>
           elements too, including the bottom nav and the call accept/decline, which is
           most of what anyone actually presses. Capture phase so a handler that stops
           propagation can't silence the click. */}
