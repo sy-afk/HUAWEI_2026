@@ -56,15 +56,16 @@ import {
   IconChat, IconChatBubble, IconCheck, IconCoin, 
   IconEnvelope, IconEyeInspect, IconFlame,
   IconGear, IconHouse, 
+  IconLink, IconMedal,
   IconPerson, IconPhone, 
   IconRealEmail,
-  IconShield, IconSpeaker, IconStar, IconStore,
+  IconShield, IconSkull, IconSpeaker, IconStar, IconStore,
   IconTelegram, IconTrophy,
   IconWarning, IconX 
 } from "./components/icons";
 
 // Import avatars
-import { FamilyChar, PixelAvatar, PixelMascot, PixiAvatar } from "./components/avatars";
+import { AnimatedFamilyChar, FamilyChar, PixelAvatar, PixelMascot, PixiAvatar } from "./components/avatars";
 
 // Import furniture
 import { FurnitureIcon, PurchasedRoomFurniture, ShopFurnitureArt, WallpaperSwatch } from "./components/furniture";
@@ -76,7 +77,7 @@ import {
   ClueTooltip, FlagTooltip,
   InspectableLink,
   PixelButton, PixelPanel, PixelRadio, PixelToggle, 
-  ScamReasonSection, SenderInspectPanel,
+  ScamReasonSection, SenderInspectPanel, ToggleSwitchB,
   XPBar 
 } from "./components/ui";
 
@@ -96,6 +97,9 @@ import { DrillSelectScreen } from "./screens/drills/DrillSelectScreen";
 import { FamilyHomeScreen } from "./screens/home";
 import { AvatarCustomisationScreen, ProfileEditScreen, ProfileScreen } from "./screens/profile";
 import { ShopScreen, CustomizeScreen } from "./screens/store";
+import { CallScreen, IncomingCallScreen } from "./screens/drills/call";
+import { SMSBrowserScreen, SMSInboxScreen, SMSThreadScreen } from "./screens/drills/sms";
+import { EmailBrowserScreen, EmailDetailScreen, EmailDownloadScreen, EmailInboxScreen } from "./screens/drills/email";
 
 // Import hooks
 import { useIdleFrame } from "./hooks/useIdleFrame";
@@ -173,6 +177,7 @@ function saveSettings(s: AppSettings) {
 // drillWindowStatus
 
 type LeaderboardRow = { rank: number; name: string; score: number; wins?: number; area?: string };
+type ShameRow = { rank: number; id?: string; name: string; scammed: number; streak?: number; area?: string };
 
 
 // ── Phase 2: Coin ledger types ─────────────────────────────────────────────
@@ -1323,8 +1328,17 @@ function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOutcome, p
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: LEADERBOARD
 // ─────────────────────────────────────────────────────────────────────────
-function LeaderboardScreen() {
-  const [tab, setTab] = useState<"fame" | "practice">("fame");
+// Offline fallback for the Hall of Shame — the actual household, ranked by scam count,
+// used only until /api/shame answers. This board is about the family, not a made-up
+// neighborhood.
+function familyShameFallback(): ShameRow[] {
+  return [...FAMILY_MEMBERS]
+    .sort((a, b) => b.timesScammed - a.timesScammed)
+    .map((m, i) => ({ rank: i + 1, id: m.id, name: m.name, scammed: m.timesScammed, streak: m.streak, area: m.role }));
+}
+
+function LeaderboardScreen({ activeMemberId }: { activeMemberId: string }) {
+  const [tab, setTab] = useState<"fame" | "shame">("fame");
   return (
     <div className="flex flex-col h-full">
       <div className="flex" style={{ borderBottom: "4px solid #2a3a5c" }}>
@@ -1333,12 +1347,12 @@ function LeaderboardScreen() {
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: tab === "fame" ? "#00ff88" : "#2a3a5c" }}>HALL OF FAME</div>
         </button>
         <div style={{ width: 4, backgroundColor: "#2a3a5c" }} />
-        <button onClick={() => setTab("practice")} className="flex-1 flex flex-col items-center justify-center gap-1 py-3" style={{ backgroundColor: tab === "practice" ? "#1a0a10" : "#0a0e1a", border: "none", borderBottom: tab === "practice" ? "4px solid #ff6b35" : "4px solid transparent", cursor: "pointer" }}>
-          <IconBulb size={16} color={tab === "practice" ? "#ff6b35" : "#2a3a5c"} />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: tab === "practice" ? "#ff6b35" : "#2a3a5c" }}>PRACTICE BOARD</div>
+        <button onClick={() => setTab("shame")} className="flex-1 flex flex-col items-center justify-center gap-1 py-3" style={{ backgroundColor: tab === "shame" ? "#1a0a10" : "#0a0e1a", border: "none", borderBottom: tab === "shame" ? "4px solid #ff2d55" : "4px solid transparent", cursor: "pointer" }}>
+          <IconSkull size={16} color={tab === "shame" ? "#ff2d55" : "#2a3a5c"} />
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: tab === "shame" ? "#ff2d55" : "#2a3a5c" }}>HALL OF SHAME</div>
         </button>
       </div>
-      {tab === "fame" ? <FameBoard /> : <LearningBoard />}
+      {tab === "fame" ? <FameBoard /> : <ShameBoard activeMemberId={activeMemberId} />}
     </div>
   );
 }
@@ -1377,6 +1391,69 @@ function FameBoard() {
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#4ecdc4" }}>{p.score.toLocaleString()}</div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function ShameBoard({ activeMemberId }: { activeMemberId: string }) {
+  const [board, setBoard] = useState<ShameRow[]>(familyShameFallback);
+
+  useEffect(() => {
+    apiGet<ShameRow[]>("/api/shame").then((rows) => {
+      if (rows && rows.length) {
+        setBoard(rows.map((r) => ({ ...r, area: r.area ?? (r.id ? MEMBER_MAP[r.id]?.role : undefined) ?? "FAMILY" })));
+      }
+    });
+  }, []);
+
+  // "You" is whoever is currently active on this shared device, not a fixed identity —
+  // matches how the rest of the app (shop, drills) tracks the active family member.
+  const you = board.find((p) => p.id === activeMemberId);
+  const youTag = you == null ? "" : you.scammed <= 2 ? "NOT BAD!" : you.scammed <= 5 ? "KEEP GOING" : "STEP IT UP";
+
+  return (
+    <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="mx-4 mt-3 px-3 py-2 flex items-center gap-2" style={{ backgroundColor: "rgba(255,45,85,0.08)", border: "3px solid #ff2d55" }}>
+        <IconWarning size={12} color="#ff2d55" />
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff2d55" }}>MOST SCAMMED IN THE FAMILY</div>
+      </div>
+      {you && (
+        <div className="mx-4 mt-2 px-3 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(255,107,53,0.08)", border: "3px solid #ff6b35" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ff6b35" }}>#{you.rank}</div>
+          <PixelMascot size={28} />
+          <div className="flex-1">
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff6b35" }}>YOU</div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>{you.scammed} TIME{you.scammed === 1 ? "" : "S"} SCAMMED</div>
+          </div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#00ff88" }}>{youTag}</div>
+        </div>
+      )}
+      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" style={{ scrollbarWidth: "none" }}>
+        {board.map((p, i) => {
+          const isYou = p.id === activeMemberId;
+          const shameColors = ["#ff2d55", "#ff2d55", "#ff2d55", "#ff6b35", "#ff6b35", "#ff6b35", "#ffe66d", "#ffe66d"];
+          const rowColor = shameColors[i] ?? "#2a3a5c";
+          return (
+            <div key={p.rank} className="flex items-center gap-3 px-3 py-3" style={{ backgroundColor: isYou ? "rgba(255,107,53,0.08)" : "#111827", border: `3px solid ${isYou ? "#ff6b35" : rowColor}`, boxShadow: i < 3 ? `3px 3px 0px ${rowColor}` : "none" }}>
+              <div className="flex items-center justify-center" style={{ width: 28 }}>
+                {i < 3 ? <IconSkull size={18} color={rowColor} /> : <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>#{p.rank}</div>}
+              </div>
+              <PixelAvatar rank={p.rank + 4} size={28} />
+              <div className="flex-1">
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: isYou ? "#ff6b35" : "#e8f4f8" }}>{isYou ? "YOU" : p.name}</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginTop: 2 }}>{p.area}</div>
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: rowColor }}>{p.scammed}x</div>
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4" }}>SCAMMED</div>
+              </div>
+            </div>
+          );
+        })}
+        <div className="py-3 text-center" style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#2a3a5c" }}>
+          — KEEP TRAINING TO STAY OFF THIS LIST —
+        </div>
       </div>
     </div>
   );
@@ -3787,7 +3864,7 @@ export default function App() {
                 purchasedItems={purchasedItems}
               />
             )}
-            {screen === "leaderboard" && <LeaderboardScreen />}
+            {screen === "leaderboard" && <LeaderboardScreen activeMemberId={activeMemberId} />}
             {screen === "store" && (
               <ShopScreen
                 activeMemberId={activeMemberId}
