@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export function PixelBtn({
+export function PixelButton({
   children,
   onClick,
   color = "#00ff88",

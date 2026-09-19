@@ -19,7 +19,7 @@ export function ScamReasonSection({ flags }: { flags: DrillFlag[] }) {
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ width: 20, height: 20, backgroundColor: "#ff2d55", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#0a0e1a" }}>{i + 1}</span>
-                  </div>
+                  </div>c
                   <IconWarning size={14} color={isOpen ? "#ff2d55" : "#6b8ba4"} />
                   <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: isOpen ? "#ff2d55" : "#e8f4f8", flex: 1 }}>{flag.name}</div>
                   <svg width={10} height={8} viewBox="0 0 5 4" style={{ imageRendering: "pixelated", flexShrink: 0, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>

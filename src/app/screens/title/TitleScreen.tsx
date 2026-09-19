@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { Blink, PixelBtn } from "../../components/ui";
+import { Blink, PixelButton } from "../../components/ui";
 import { PixelMascot } from "../../components/avatars";
 import { Stars } from "../../components/layout";
 
@@ -94,9 +94,9 @@ export function TitleScreen({ onNext }: TitleScreenProps) {
 
       <div className="relative z-10 flex flex-col items-center gap-6 mb-4">
         <Blink ms={700} min={0.5}>
-          <PixelBtn onClick={onNext} color="#00ff88" size="lg">
+          <PixelButton onClick={onNext} color="#00ff88" size="lg">
             [ PRESS START ]
-          </PixelBtn>
+          </PixelButton>
         </Blink>
 
         <div

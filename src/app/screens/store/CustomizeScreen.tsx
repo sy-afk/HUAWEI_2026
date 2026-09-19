@@ -6,7 +6,7 @@ import { SHOP_CATALOGUE } from "../../data/shopCatalogue";
 
 import { ShopFurnitureArt, WallpaperSwatch, FurnitureIcon } from "../../components/furniture";
 import { IconCoin, IconWarning, IconX } from "../../components/icons";
-import { PixelBtn } from "../../components/ui";
+import { PixelButton } from "../../components/ui";
 
 export function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, onBack, onSell }: {
   memberId: string;
@@ -127,7 +127,7 @@ export function CustomizeScreen({ memberId, coins, purchasedItems, soldItems, on
             ))}
           </div>
 
-          <PixelBtn onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="md" full>BACK TO HOME</PixelBtn>
+          <PixelButton onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="md" full>BACK TO HOME</PixelButton>
         </div>
       </div>
     </div>

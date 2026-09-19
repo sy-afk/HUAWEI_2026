@@ -4,7 +4,7 @@ import {
   IconPhone, IconRealEmail, IconShield,
   IconTelegram
 } from "../../components/icons";
-import { PixelBtn } from "../../components/ui";
+import { PixelButton } from "../../components/ui";
 import { SafetyHabitsDropdown } from "./SafetyHabitsDropdown";
 
 export function DrillSelectScreen({
@@ -85,7 +85,7 @@ export function DrillSelectScreen({
           <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#b4c6d4", margin: "13px 0 14px", lineHeight: 1.5 }}>
             Decide what is safe, uncover clues, and protect every member of the household.
           </div>
-          <PixelBtn onClick={onFamily} color="#00ff88" textColor="#0a0e1a" size="md" full>START FAMILY DRILL</PixelBtn>
+          <PixelButton onClick={onFamily} color="#00ff88" textColor="#0a0e1a" size="md" full>START FAMILY DRILL</PixelButton>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
@@ -111,7 +111,7 @@ export function DrillSelectScreen({
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#b4c6d4", margin: "12px 0 13px", lineHeight: 1.5 }}>
               {drill.description}
             </div>
-            <PixelBtn onClick={drill.onClick} color={drill.color} textColor="#0a0e1a" size="md" full>{drill.action}</PixelBtn>
+            <PixelButton onClick={drill.onClick} color={drill.color} textColor="#0a0e1a" size="md" full>{drill.action}</PixelButton>
           </div>
         ))}
 

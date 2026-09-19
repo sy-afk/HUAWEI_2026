@@ -1,6 +1,6 @@
 import type { FamilyMember } from "../../types/family";
 import { FamilyChar } from "../../components/avatars";
-import { XPBar, PixelBtn } from "../../components/ui";
+import { XPBar, PixelButton } from "../../components/ui";
 import { 
   IconBadge, IconBulb, IconCoin,  
   IconFlame, IconLock, IconShield, IconX
@@ -97,12 +97,12 @@ export function MemberProfileOverlay({
           </div>
         </div>
         <div style={{ padding: "16px 16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
-          <PixelBtn
+          <PixelButton
             onClick={() => { onClose(); onCustomize(member.id); }}
             color="#1a2340" textColor="#6b8ba4" size="md" full
           >
             CUSTOMIZE ROOM
-          </PixelBtn>
+          </PixelButton>
         </div>
       </div>
     </div>

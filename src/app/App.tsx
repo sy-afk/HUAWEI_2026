@@ -75,7 +75,7 @@ import {
   Blink, 
   ClueTooltip, FlagTooltip,
   InspectableLink,
-  PixelBtn, PixelPanel, PixelRadio, PixelToggle, 
+  PixelButton, PixelPanel, PixelRadio, PixelToggle, 
   ScamReasonSection, SenderInspectPanel,
   XPBar 
 } from "./components/ui";
@@ -190,117 +190,6 @@ type LeaderboardRow = { rank: number; name: string; score: number; wins?: number
 // ─────────────────────────────────────────────────────────────────────────
 
 
-function IconSkull({ size = 24, color = "#ff2d55" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 12 14" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={3} y={0} width={6} height={2} fill={color} />
-      <rect x={1} y={1} width={10} height={2} fill={color} />
-      <rect x={0} y={2} width={12} height={5} fill={color} />
-      <rect x={1} y={7} width={10} height={2} fill={color} />
-      <rect x={2} y={9} width={2} height={3} fill={color} />
-      <rect x={5} y={9} width={2} height={3} fill={color} />
-      <rect x={8} y={9} width={2} height={3} fill={color} />
-      <rect x={2} y={3} width={3} height={3} fill="#0a0e1a" />
-      <rect x={7} y={3} width={3} height={3} fill="#0a0e1a" />
-      <rect x={3} y={4} width={1} height={1} fill={color} />
-      <rect x={8} y={4} width={1} height={1} fill={color} />
-    </svg>
-  );
-}
-
-
-
-
-
-function IconMedal({ rank = 1, size = 20 }: { rank: number; size?: number }) {
-  const colors = ["#ffe66d", "#c0c0c0", "#cd7f32"];
-  const c = colors[rank - 1] ?? "#6b8ba4";
-  return (
-    <svg width={size} height={size} viewBox="0 0 10 12" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={3} y={0} width={4} height={4} fill={c} opacity="0.6" />
-      <rect x={4} y={0} width={2} height={5} fill={c} opacity="0.8" />
-      <rect x={1} y={4} width={8} height={8} fill={c} />
-      <rect x={0} y={5} width={10} height={6} fill={c} />
-      <rect x={2} y={4} width={6} height={8} fill={c} />
-      <rect x={4} y={6} width={2} height={4} fill="#0a0e1a" />
-      <rect x={3} y={7} width={4} height={2} fill="#0a0e1a" />
-    </svg>
-  );
-}
-
-
-
-
-function IconLink({ size = 16, color = "#4ecdc4" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 10 10" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={0} y={3} width={2} height={4} fill={color} />
-      <rect x={1} y={2} width={2} height={1} fill={color} />
-      <rect x={1} y={7} width={2} height={1} fill={color} />
-      <rect x={2} y={4} width={1} height={2} fill="#111827" />
-      <rect x={3} y={4} width={4} height={2} fill={color} />
-      <rect x={8} y={3} width={2} height={4} fill={color} />
-      <rect x={7} y={2} width={2} height={1} fill={color} />
-      <rect x={7} y={7} width={2} height={1} fill={color} />
-      <rect x={7} y={4} width={1} height={2} fill="#111827" />
-    </svg>
-  );
-}
-
-function IconDownload({ size = 16, color = "#00ff88" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 10 12" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={4} y={0} width={2} height={6} fill={color} />
-      <rect x={2} y={5} width={6} height={2} fill={color} />
-      <rect x={3} y={6} width={4} height={2} fill={color} />
-      <rect x={4} y={7} width={2} height={2} fill={color} />
-      <rect x={0} y={10} width={10} height={2} fill={color} />
-    </svg>
-  );
-}
-
-function IconBrowserWindow({ size = 20, color = "#4ecdc4" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 14 12" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={0} y={0} width={14} height={12} fill={color} />
-      <rect x={1} y={3} width={12} height={8} fill="#111827" />
-      <rect x={1} y={1} width={2} height={2} fill="#ff2d55" />
-      <rect x={4} y={1} width={2} height={2} fill="#ffe66d" />
-      <rect x={7} y={1} width={2} height={2} fill="#00ff88" />
-      <rect x={10} y={1} width={3} height={2} fill="#0a0e1a" opacity={0.5} />
-      <rect x={2} y={5} width={8} height={1} fill={color} opacity={0.3} />
-      <rect x={2} y={7} width={10} height={1} fill={color} opacity={0.3} />
-      <rect x={2} y={9} width={6} height={1} fill={color} opacity={0.3} />
-    </svg>
-  );
-}
-
-function IconReportFlag({ size = 16, color = "#ff6b35" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 8 12" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={0} y={0} width={2} height={12} fill={color} opacity={0.6} />
-      <rect x={2} y={0} width={6} height={5} fill={color} />
-      <rect x={2} y={2} width={4} height={1} fill="#0a0e1a" opacity={0.4} />
-    </svg>
-  );
-}
-
-function IconTrashBin({ size = 16, color = "#ff2d55" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 10 12" style={{ imageRendering: "pixelated", display: "block" }}>
-      <rect x={3} y={0} width={4} height={2} fill={color} />
-      <rect x={0} y={2} width={10} height={2} fill={color} />
-      <rect x={1} y={4} width={8} height={8} fill={color} />
-      <rect x={3} y={5} width={1} height={5} fill="#0a0e1a" />
-      <rect x={5} y={5} width={1} height={5} fill="#0a0e1a" />
-      <rect x={7} y={5} width={1} height={5} fill="#0a0e1a" />
-    </svg>
-  );
-}
-
-
-
-
 // ── Per-item pixel-art furniture icons ───────────────────────────────────
 
 
@@ -315,33 +204,7 @@ function IconTrashBin({ size = 16, color = "#ff2d55" }: { size?: number; color?:
 // Distinct from PixelMascot: antenna on top, single-pixel glowing eye centres,
 // slightly different body accents. Reads as "bot, not player".
 
-function PixelPhone({ ringing = false }: { ringing?: boolean }) {
-  const [tilt, setTilt] = useState(0);
-  useEffect(() => {
-    if (!ringing) return;
-    const t = setInterval(() => setTilt((v) => (v === 0 ? -4 : v === -4 ? 4 : 0)), 150);
-    return () => clearInterval(t);
-  }, [ringing]);
-  return (
-    <div style={{ transform: `rotate(${tilt}deg)`, transition: "transform 0.1s", display: "inline-block" }}>
-      <svg width={80} height={80} viewBox="0 0 80 80" style={{ imageRendering: "pixelated" }}>
-        <rect x={16} y={8} width={48} height={64} fill="#2a3a5c" />
-        <rect x={20} y={12} width={40} height={56} fill="#111827" />
-        <rect x={24} y={16} width={32} height={40} fill="#1a2340" />
-        <rect x={28} y={60} width={24} height={4} fill="#2a3a5c" />
-        <rect x={34} y={62} width={12} height={2} fill="#4ecdc4" />
-        {ringing && (
-          <>
-            <rect x={8} y={24} width={4} height={4} fill="#ffe66d" />
-            <rect x={68} y={24} width={4} height={4} fill="#ffe66d" />
-            <rect x={8} y={32} width={4} height={4} fill="#ffe66d" />
-            <rect x={68} y={32} width={4} height={4} fill="#ffe66d" />
-          </>
-        )}
-      </svg>
-    </div>
-  );
-}
+
 
 
 
@@ -584,8 +447,8 @@ function TelegramDrillIntroScreen({ onOpen, onBack }: { onOpen: () => void; onBa
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <PixelBtn onClick={onOpen} color="#00d4ff" textColor="#0a0e1a" size="lg" full>[ OPEN TELEGRAM ]</PixelBtn>
-          <PixelBtn onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>BACK TO DRILLS</PixelBtn>
+          <PixelButton onClick={onOpen} color="#00d4ff" textColor="#0a0e1a" size="lg" full>[ OPEN TELEGRAM ]</PixelButton>
+          <PixelButton onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>BACK TO DRILLS</PixelButton>
         </div>
       </div>
     </div>
@@ -722,24 +585,24 @@ function RealisticPhoneDrillIntroScreen({ onBack, onRegister, onStarted, onSelfR
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ffe66d", textAlign: "center", marginBottom: 2, lineHeight: 1.5 }}>
                 HOW DID THE CALL GO?
               </div>
-              <PixelBtn onClick={() => onSelfReport(true, drillId)} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ I HUNG UP / STAYED SAFE ]</PixelBtn>
-              <PixelBtn onClick={() => onSelfReport(false, drillId)} color="#ff2d55" textColor="#ffffff" size="md" full>I ENGAGED / GAVE INFO</PixelBtn>
+              <PixelButton onClick={() => onSelfReport(true, drillId)} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ I HUNG UP / STAYED SAFE ]</PixelButton>
+              <PixelButton onClick={() => onSelfReport(false, drillId)} color="#ff2d55" textColor="#ffffff" size="md" full>I ENGAGED / GAVE INFO</PixelButton>
             </>
           ) : registered && scheduleBlocked ? (
             <>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ffe66d", textAlign: "center", lineHeight: 1.5 }}>
                 OUTSIDE YOUR DRILL WINDOW · OPENS {scheduleNextLabel}
               </div>
-              <PixelBtn onClick={() => {}} color="#1a2340" textColor="#6b8ba4" size="lg" full disabled>[ CALL ME NOW ]</PixelBtn>
+              <PixelButton onClick={() => {}} color="#1a2340" textColor="#6b8ba4" size="lg" full disabled>[ CALL ME NOW ]</PixelButton>
             </>
           ) : registered ? (
-            <PixelBtn onClick={placeCall} color="#00ff88" textColor="#0a0e1a" size="lg" full disabled={phase === "calling"}>
+            <PixelButton onClick={placeCall} color="#00ff88" textColor="#0a0e1a" size="lg" full disabled={phase === "calling"}>
               {phase === "calling" ? "CALLING..." : "[ CALL ME NOW ]"}
-            </PixelBtn>
+            </PixelButton>
           ) : (
-            <PixelBtn onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="lg" full>[ REGISTER TO CONTINUE ]</PixelBtn>
+            <PixelButton onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="lg" full>[ REGISTER TO CONTINUE ]</PixelButton>
           )}
-          <PixelBtn onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>BACK TO DRILLS</PixelBtn>
+          <PixelButton onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>BACK TO DRILLS</PixelButton>
         </div>
       </div>
     </div>
@@ -871,22 +734,22 @@ function RealisticSmsDrillIntroScreen({ onBack, onRegister, onOutcome }: {
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ffe66d", textAlign: "center", marginBottom: 2, lineHeight: 1.5 }}>
                 {deliveryUnconfirmed ? "IF THE TEXT ARRIVED, HOW DID IT GO?" : "HOW DID IT GO?"}
               </div>
-              <PixelBtn onClick={() => complete("reported")} color="#00ff88" textColor="#0a0e1a" size="lg" full disabled={completing || !drillId}>[ {deliveryUnconfirmed ? "IF IT ARRIVED: I SPOTTED IT" : "I SPOTTED THE SCAM"} ]</PixelBtn>
-              <PixelBtn onClick={() => complete("clicked_link")} color="#ff2d55" textColor="#ffffff" size="md" full disabled={completing || !drillId}>{deliveryUnconfirmed ? "IF IT ARRIVED: I CLICKED / REPLIED" : "I CLICKED / REPLIED"}</PixelBtn>
+              <PixelButton onClick={() => complete("reported")} color="#00ff88" textColor="#0a0e1a" size="lg" full disabled={completing || !drillId}>[ {deliveryUnconfirmed ? "IF IT ARRIVED: I SPOTTED IT" : "I SPOTTED THE SCAM"} ]</PixelButton>
+              <PixelButton onClick={() => complete("clicked_link")} color="#ff2d55" textColor="#ffffff" size="md" full disabled={completing || !drillId}>{deliveryUnconfirmed ? "IF IT ARRIVED: I CLICKED / REPLIED" : "I CLICKED / REPLIED"}</PixelButton>
             </> : (
-              <PixelBtn onClick={onBack} color="#ffe66d" textColor="#0a0e1a" size="lg" full>[ DONE — DO NOT RESEND ]</PixelBtn>
+              <PixelButton onClick={onBack} color="#ffe66d" textColor="#0a0e1a" size="lg" full>[ DONE — DO NOT RESEND ]</PixelButton>
             )
           ) : registered ? (
             // This is an explicit, consented manual send. The schedule only limits
             // surprise drills; applying it here made "TEXT ME NOW" unusable for most
             // of the day even though the SMS service itself was healthy.
-            <PixelBtn onClick={sendText} color="#4ecdc4" textColor="#0a0e1a" size="lg" full disabled={phase === "sending"}>
+            <PixelButton onClick={sendText} color="#4ecdc4" textColor="#0a0e1a" size="lg" full disabled={phase === "sending"}>
               {phase === "sending" ? "SENDING..." : "[ TEXT ME NOW ]"}
-            </PixelBtn>
+            </PixelButton>
           ) : (
-            <PixelBtn onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="lg" full>[ REGISTER TO CONTINUE ]</PixelBtn>
+            <PixelButton onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="lg" full>[ REGISTER TO CONTINUE ]</PixelButton>
           )}
-          <PixelBtn onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>BACK TO DRILLS</PixelBtn>
+          <PixelButton onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>BACK TO DRILLS</PixelButton>
         </div>
       </div>
     </div>
@@ -1096,31 +959,31 @@ function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, schedul
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ffe66d", textAlign: "center", marginBottom: 2, lineHeight: 1.5 }}>
                 {deliveryUnconfirmed ? "IF THE EMAIL ARRIVED, HOW DID IT GO?" : "HOW DID IT GO?"}
               </div>
-              <PixelBtn onClick={() => complete("reported")} color="#00ff88" textColor="#0a0e1a" size="lg" full disabled={busy || !drillId}>[ {deliveryUnconfirmed ? "IF IT ARRIVED: I SPOTTED IT" : "I SPOTTED THE SCAM"} ]</PixelBtn>
-              <PixelBtn onClick={() => complete("submitted_details")} color="#ff2d55" textColor="#ffffff" size="md" full disabled={busy || !drillId}>{deliveryUnconfirmed ? "IF IT ARRIVED: I CLICKED / REPLIED" : "I CLICKED / REPLIED"}</PixelBtn>
+              <PixelButton onClick={() => complete("reported")} color="#00ff88" textColor="#0a0e1a" size="lg" full disabled={busy || !drillId}>[ {deliveryUnconfirmed ? "IF IT ARRIVED: I SPOTTED IT" : "I SPOTTED THE SCAM"} ]</PixelButton>
+              <PixelButton onClick={() => complete("submitted_details")} color="#ff2d55" textColor="#ffffff" size="md" full disabled={busy || !drillId}>{deliveryUnconfirmed ? "IF IT ARRIVED: I CLICKED / REPLIED" : "I CLICKED / REPLIED"}</PixelButton>
             </> : (
-              <PixelBtn onClick={onBack} color="#ffe66d" textColor="#0a0e1a" size="lg" full>[ DONE — DO NOT RESEND ]</PixelBtn>
+              <PixelButton onClick={onBack} color="#ffe66d" textColor="#0a0e1a" size="lg" full>[ DONE — DO NOT RESEND ]</PixelButton>
             )
           ) : phase === "verify-email" ? (
             <>
-              <PixelBtn onClick={checkVerificationAndSend} color="#ffe66d" textColor="#0a0e1a" size="lg" full disabled={busy}>
+              <PixelButton onClick={checkVerificationAndSend} color="#ffe66d" textColor="#0a0e1a" size="lg" full disabled={busy}>
                 {busy ? "CHECKING..." : "[ CHECK VERIFICATION & SEND ]"}
-              </PixelBtn>
-              <PixelBtn onClick={() => { setPhase("ask-email"); setMsg(""); }} color="#1a2340" textColor="#6b8ba4" size="sm" full disabled={busy}>USE A DIFFERENT EMAIL</PixelBtn>
+              </PixelButton>
+              <PixelButton onClick={() => { setPhase("ask-email"); setMsg(""); }} color="#1a2340" textColor="#6b8ba4" size="sm" full disabled={busy}>USE A DIFFERENT EMAIL</PixelButton>
             </>
           ) : registered && scheduleBlocked ? (
             <>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ffe66d", textAlign: "center", lineHeight: 1.5 }}>
                 OUTSIDE YOUR DRILL WINDOW · OPENS {scheduleNextLabel}
               </div>
-              <PixelBtn onClick={() => {}} color="#1a2340" textColor="#6b8ba4" size="lg" full disabled>[ SEND DRILL EMAIL ]</PixelBtn>
+              <PixelButton onClick={() => {}} color="#1a2340" textColor="#6b8ba4" size="lg" full disabled>[ SEND DRILL EMAIL ]</PixelButton>
             </>
           ) : registered ? (
-            <PixelBtn onClick={onSendTap} color="#ff6b35" textColor="#0a0e1a" size="lg" full>[ SEND DRILL EMAIL ]</PixelBtn>
+            <PixelButton onClick={onSendTap} color="#ff6b35" textColor="#0a0e1a" size="lg" full>[ SEND DRILL EMAIL ]</PixelButton>
           ) : (
-            <PixelBtn onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="lg" full>[ REGISTER TO CONTINUE ]</PixelBtn>
+            <PixelButton onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="lg" full>[ REGISTER TO CONTINUE ]</PixelButton>
           )}
-          <PixelBtn onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>BACK TO DRILLS</PixelBtn>
+          <PixelButton onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm" full>BACK TO DRILLS</PixelButton>
         </div>
       </div>
 
@@ -1140,8 +1003,8 @@ function RealisticEmailDrillIntroScreen({ onBack, onRegister, onOutcome, schedul
             />
             {msg && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff2d55", marginBottom: 10 }}>{msg}</div>}
             <div style={{ display: "flex", gap: 10 }}>
-              <div style={{ flex: 1 }}><PixelBtn onClick={startEmailVerification} color="#ff6b35" textColor="#0a0e1a" size="sm" full disabled={busy}>{busy ? "SENDING..." : "[ VERIFY ]"}</PixelBtn></div>
-              <div style={{ flex: 1 }}><PixelBtn onClick={() => { if (!busy) { setPhase("idle"); setMsg(""); } }} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>CANCEL</PixelBtn></div>
+              <div style={{ flex: 1 }}><PixelButton onClick={startEmailVerification} color="#ff6b35" textColor="#0a0e1a" size="sm" full disabled={busy}>{busy ? "SENDING..." : "[ VERIFY ]"}</PixelButton></div>
+              <div style={{ flex: 1 }}><PixelButton onClick={() => { if (!busy) { setPhase("idle"); setMsg(""); } }} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>CANCEL</PixelButton></div>
             </div>
           </div>
         </div>
@@ -1259,745 +1122,40 @@ function FurnitureKid() {
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: INCOMING CALL
 // ─────────────────────────────────────────────────────────────────────────
-function IncomingCallScreen({ onAccept, onDecline }: { activeMemberId: string; onAccept: () => void; onDecline: () => void }) {
-  const [pulse, setPulse] = useState(true);
-  useEffect(() => {
-    const t = setInterval(() => setPulse((p) => !p), 800);
-    return () => clearInterval(t);
-  }, []);
-  return (
-      <div className="flex flex-col items-center justify-between flex-1 px-6 py-12" style={{ background: "linear-gradient(180deg, #0a0e1a 0%, #0d1526 50%, #0a0e1a 100%)" }}>
-        <div className="flex flex-col items-center gap-2">
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#6b8ba4", letterSpacing: 2 }}>INCOMING CALL</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff6b35", border: "2px solid #ff6b35", padding: "4px 8px", backgroundColor: "rgba(255,107,53,0.1)", display: "flex", alignItems: "center", gap: 6 }}>
-            <IconWarning size={12} color="#ff6b35" />
-            UNKNOWN CALLER
-          </div>
-        </div>
-        <div className="flex flex-col items-center gap-6">
-          <div style={{ opacity: pulse ? 1 : 0.6, transition: "opacity 0.4s" }}>
-            <PixelPhone ringing />
-          </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 18, color: "#ffffff", textAlign: "center" }}>
-            +1 (???)<br />???-????
-          </div>
-          <Blink ms={900}>
-            <div className="flex items-center gap-2" style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff6b35" }}>
-              <IconBell size={14} color="#ff6b35" />
-              RINGING...
-            </div>
-          </Blink>
-          <div style={{ backgroundColor: "rgba(255,45,85,0.1)", border: "3px solid #ff2d55", padding: "8px 12px", width: "100%" }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ff6b35", lineHeight: 1.5 }}>
-              DRILL MODE ACTIVE — This is a simulated scam call. Can you hang tough?
-            </div>
-          </div>
-        </div>
-        <div className="flex gap-12 items-center">
-          <div className="flex flex-col items-center gap-3">
-            <button onClick={onDecline} onMouseDown={(e) => (e.currentTarget.style.transform = "translate(4px,4px)")} onMouseUp={(e) => (e.currentTarget.style.transform = "none")} style={{ width: 72, height: 72, backgroundColor: "#ff2d55", border: "4px solid #0a0e1a", boxShadow: "4px 4px 0 #0a0e1a", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "transform 0.05s" }}>
-              <IconX size={32} color="#ffffff" />
-            </button>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff2d55" }}>DECLINE</div>
-          </div>
-          <div className="flex flex-col items-center gap-3">
-            <button onClick={onAccept} onMouseDown={(e) => (e.currentTarget.style.transform = "translate(4px,4px)")} onMouseUp={(e) => (e.currentTarget.style.transform = "none")} style={{ width: 72, height: 72, backgroundColor: "#00ff88", border: "4px solid #0a0e1a", boxShadow: "4px 4px 0 #0a0e1a", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "transform 0.05s" }}>
-              <IconCheck size={32} color="#0a0e1a" />
-            </button>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#00ff88" }}>ACCEPT</div>
-          </div>
-        </div>
-      </div>
-  );
-}
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // SCREEN: CALL
 // ─────────────────────────────────────────────────────────────────────────
 
-const CONVERSATION: ConversationLine[] = [
-  { who: "caller", text: "Hello! This is David from the IRS Fraud Division.", highlights: [{ phrase: "IRS Fraud Division", flagId: "impersonation" }] },
-  { who: "caller", text: "We detected suspicious activity on your tax account." },
-  { who: "you", text: "Uh, okay. What kind of activity?" },
-  { who: "caller", text: "You owe $2,400 in back taxes. You must pay immediately to avoid arrest.", highlights: [{ phrase: "avoid arrest", flagId: "arrest_threat" }] },
-  { who: "you", text: "Arrest? That sounds scary..." },
-  { who: "caller", text: "Yes. You need to pay with gift cards RIGHT NOW to clear this up.", highlights: [{ phrase: "pay with gift cards", flagId: "gift_card" }, { phrase: "RIGHT NOW", flagId: "urgency" }] },
-  { who: "caller", text: "Buy $2,400 in iTunes gift cards and read me the numbers.", highlights: [{ phrase: "iTunes gift cards", flagId: "gift_card" }] },
-  { who: "you", text: "Gift cards? That doesn't sound right..." },
-  { who: "caller", text: "This is your FINAL warning. Officers are being dispatched to your address.", highlights: [{ phrase: "FINAL warning", flagId: "urgency" }, { phrase: "Officers are being dispatched", flagId: "escalation" }] },
-];
 
-function CallScreen({ onHangUp, onResult, onDistress }: { activeMemberId: string; onHangUp: (win: boolean) => void; onResult: (win: boolean) => void; onDistress: () => void }) {
-  const [visibleLines, setVisibleLines] = useState(0);
-  const [elapsed, setElapsed] = useState(0);
-  const [callerSpeaking, setCallerSpeaking] = useState(true);
-  const [activeFlag, setActiveFlag] = useState<DrillFlag | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (visibleLines >= CONVERSATION.length) return;
-    const delay = visibleLines === 0 ? 1000 : 2200;
-    const t = setTimeout(() => {
-      setVisibleLines((v) => v + 1);
-      setCallerSpeaking(CONVERSATION[visibleLines]?.who === "caller");
-    }, delay);
-    return () => clearTimeout(t);
-  }, [visibleLines]);
-
-  useEffect(() => {
-    const t = setInterval(() => setElapsed((e) => e + 1), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [visibleLines]);
-
-  useEffect(() => {
-    if (visibleLines >= CONVERSATION.length) {
-      const t = setTimeout(() => onResult(false), 3000);
-      return () => clearTimeout(t);
-    }
-  }, [visibleLines]);
-
-  const mins = String(Math.floor(elapsed / 60)).padStart(2, "0");
-  const secs = String(elapsed % 60).padStart(2, "0");
-
-  const handleFlagTap = (flagId: string) => {
-    const flag = FLAG_MAP[flagId];
-    if (!flag) return;
-    setActiveFlag(activeFlag?.id === flagId ? null : flag);
-  };
-
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3" style={{ backgroundColor: "#111827", borderBottom: "4px solid #2a3a5c" }}>
-        <div className="flex items-center gap-2">
-          <div style={{ width: 8, height: 8, backgroundColor: callerSpeaking ? "#ff6b35" : "#00ff88", animation: "pulse-dot 1s ease-in-out infinite" }} />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: callerSpeaking ? "#ff6b35" : "#00ff88" }}>
-            {callerSpeaking ? "CALLER SPEAKING" : "LISTENING..."}
-          </div>
-        </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ffe66d" }}>{mins}:{secs}</div>
-      </div>
-      <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: "3px solid #1a2340" }}>
-        <PixelPhone />
-        <div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "#ffffff" }}>UNKNOWN CALLER</div>
-          <div className="flex items-center gap-1 mt-1">
-            <IconWarning size={10} color="#ff6b35" />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff6b35" }}>SCAM DRILL ACTIVE</div>
-          </div>
-        </div>
-      </div>
-      <div style={{ flex: 1, position: "relative", overflow: "hidden" }} onClick={() => setActiveFlag(null)}>
-        <div ref={scrollRef} className="flex flex-col gap-3" style={{ height: "100%", overflowY: "auto", padding: "16px 16px 8px", scrollbarWidth: "none" }}>
-          {CONVERSATION.slice(0, visibleLines).map((line, i) => {
-            const hasFlags = (line.highlights?.length ?? 0) > 0;
-            return (
-              <div key={i} className={`flex ${line.who === "you" ? "justify-end" : "justify-start"}`}>
-                {line.who === "caller" && <div className="mr-2 mt-1 flex-shrink-0"><PixelAvatar rank={9} size={24} /></div>}
-                <div style={{ maxWidth: "72%", backgroundColor: line.who === "you" ? "#1a3a2a" : "#1a2340", border: `3px solid ${line.who === "you" ? "#00ff88" : hasFlags ? "#ff2d55" : "#ff6b35"}`, padding: "8px 10px", fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: line.who === "you" ? "#00ff88" : "#e8f4f8", lineHeight: 1.6 }}>
-                  <AnnotatedMessage text={line.text} highlights={line.highlights} onFlagTap={handleFlagTap} />
-                  {hasFlags && line.who === "caller" && (
-                    <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
-                      <IconWarning size={9} color="#ff2d55" />
-                      <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55" }}>TAP RED TEXT</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-          {visibleLines < CONVERSATION.length && (
-            <div className="flex justify-start">
-              <div className="mr-2"><PixelAvatar rank={9} size={24} /></div>
-              <div style={{ backgroundColor: "#1a2340", border: "3px solid #ff6b35", padding: "8px 14px" }}>
-                <Blink ms={400}><span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35" }}>...</span></Blink>
-              </div>
-            </div>
-          )}
-        </div>
-        {activeFlag && <FlagTooltip flag={activeFlag} onClose={() => setActiveFlag(null)} />}
-      </div>
-      <div className="px-4 py-4" style={{ borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a" }}>
-        <PixelBtn onClick={() => onHangUp(true)} color="#ff2d55" textColor="#ffffff" size="lg" full>
-          [ HANG UP — DEFEAT SCAMMER ]
-        </PixelBtn>
-        {/* Distress off-ramp — always available, never scored. Quiet styling on purpose:
-            it should be findable without competing with the primary action. */}
-        <button onClick={onDistress} style={{ width: "100%", marginTop: 10, background: "none", border: "2px solid #2a3a5c", cursor: "pointer", padding: "8px" }}>
-          <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4" }}>THIS IS TOO MUCH — STOP THE DRILL</span>
-        </button>
-      </div>
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────
 // SMS SCREENS
 // ─────────────────────────────────────────────────────────────────────────
-const SMS_INBOX_ITEMS = [
-  { id: "parcelgo", sender: "ParcelGo Alert", preview: "Your parcel is on hold. Pay $1.99 redelivery fee…", time: "NOW", isScam: true },
-  { id: "grandma", sender: "Grandma", preview: "Dinner at 7?", time: "2h" },
-  { id: "school", sender: "School Admin", preview: "Reminder: class starts at 9AM.", time: "9h" },
-  { id: "cyber", sender: "Cyber Tips", preview: "Never share OTPs with anyone.", time: "1d" },
-];
 
-function SMSInboxScreen({ onOpenScam, onBack }: { activeMemberId: string; onOpenScam: () => void; onBack: () => void }) {
-  const [shaking, setShaking] = useState<string | null>(null);
-  const [glowFrame, setGlowFrame] = useState(true);
 
-  useEffect(() => {
-    const t = setInterval(() => setGlowFrame((f) => !f), 800);
-    return () => clearInterval(t);
-  }, []);
 
-  const handleNonScam = (id: string) => {
-    setShaking(id);
-    setTimeout(() => setShaking(null), 600);
-  };
 
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4" style={{ backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", minHeight: 56, flexShrink: 0 }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>{"< BACK"}</div>
-        </button>
-        <div className="flex items-center gap-2">
-          <IconChatBubble size={16} color="#4ecdc4" />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#4ecdc4" }}>MESSAGES</div>
-        </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff2d55" }}>
-          <Blink ms={700}>1 NEW</Blink>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 px-4 py-2" style={{ backgroundColor: "rgba(255,107,53,0.1)", borderBottom: "2px solid #ff6b35" }}>
-        <IconWarning size={12} color="#ff6b35" />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff6b35" }}>
-          DRILL MODE — 1 suspicious message detected
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
-        {SMS_INBOX_ITEMS.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => item.isScam ? onOpenScam() : handleNonScam(item.id)}
-            style={{
-              display: "block", width: "100%", textAlign: "left", background: "none",
-              border: "none", borderBottom: "2px solid #1a2340", cursor: "pointer",
-              padding: "12px 16px",
-              backgroundColor: item.isScam ? (glowFrame ? "rgba(255,45,85,0.06)" : "rgba(255,107,53,0.06)") : "#0a0e1a",
-              animation: shaking === item.id ? "shake 0.5s ease" : "none",
-              boxShadow: item.isScam ? `inset 0 0 ${glowFrame ? "12px" : "4px"} rgba(255,45,85,0.15)` : "none",
-              transition: "background-color 0.4s, box-shadow 0.4s",
-            }}
-          >
-            <div className="flex items-start gap-3">
-              <div style={{ width: 40, height: 40, backgroundColor: item.isScam ? "#ff2d55" : "#2a3a5c", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: item.isScam ? "2px solid #ff2d55" : "2px solid #1a2340" }}>
-                {item.isScam ? <IconWarning size={20} color="#ffffff" /> : <IconPerson size={20} color="#6b8ba4" />}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="flex items-center justify-between mb-1">
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: item.isScam ? 7 : 6, color: item.isScam ? "#ff2d55" : "#e8f4f8" }}>{item.sender}</div>
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: item.isScam ? "#ff6b35" : "#6b8ba4" }}>{item.time}</div>
-                </div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: item.isScam ? "#ff6b35" : "#6b8ba4", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {item.preview}
-                </div>
-                {item.isScam && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <div style={{ backgroundColor: "#ff2d55", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ffffff" }}>
-                      <Blink ms={600}>IMPORTANT</Blink>
-                    </div>
-                    <div style={{ backgroundColor: "#ff6b35", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#0a0e1a" }}>UNREAD</div>
-                  </div>
-                )}
-              </div>
-            </div>
-            {shaking === item.id && (
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#4ecdc4", marginTop: 6, textAlign: "center" }}>
-                Not part of this drill.
-              </div>
-            )}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
-const SMS_LINES: { text: string; highlights?: Highlight[] }[] = [
-  { text: "Your parcel is on hold due to incomplete address details." },
-  { text: "Pay $1.99 redelivery fee before 11:59PM or your parcel will be returned.", highlights: [{ phrase: "Pay $1.99", flagId: "sms_payment" }, { phrase: "before 11:59PM", flagId: "sms_urgency" }] },
-  { text: "Update now: http://parcelgo-redeliver.example", highlights: [{ phrase: "http://parcelgo-redeliver.example", flagId: "sms_link" }] },
-];
 
-function SMSThreadScreen({ onReport, onAskFamily, onTapLink, onBack }: { activeMemberId: string; onReport: () => void; onAskFamily: () => void; onTapLink: () => void; onBack: () => void }) {
-  const [activeFlag, setActiveFlag] = useState<DrillFlag | null>(null);
 
-  const handleFlagTap = (flagId: string) => {
-    const flag = FLAG_MAP[flagId];
-    if (!flag) return;
-    setActiveFlag(activeFlag?.id === flagId ? null : flag);
-  };
 
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center gap-3 px-4" style={{ backgroundColor: "#111827", borderBottom: "4px solid #2a3a5c", minHeight: 56, flexShrink: 0 }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>{"<"}</div>
-        </button>
-        <div style={{ width: 32, height: 32, backgroundColor: "#ff2d55", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <IconWarning size={16} color="#ffffff" />
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff2d55" }}>ParcelGo Alert</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#6b8ba4", marginTop: 2 }}>Unknown sender</div>
-        </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff6b35" }}>DRILL ACTIVE</div>
-      </div>
-      <div style={{ flex: 1, position: "relative", overflow: "hidden" }} onClick={() => setActiveFlag(null)}>
-        <div className="flex flex-col gap-3" style={{ height: "100%", overflowY: "auto", padding: "16px", scrollbarWidth: "none" }}>
-          <div className="flex justify-start">
-            <div style={{ maxWidth: "80%", backgroundColor: "#1a2340", border: "3px solid #ff2d55", padding: "12px", fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#e8f4f8", lineHeight: 1.8 }}>
-              {SMS_LINES.map((line, i) => (
-                <div key={i}>
-                  <AnnotatedMessage text={line.text} highlights={line.highlights} onFlagTap={handleFlagTap} />
-                </div>
-              ))}
-              <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 4 }}>
-                <IconWarning size={9} color="#ff2d55" />
-                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55" }}>TAP RED TEXT TO INSPECT</span>
-              </div>
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <div style={{ maxWidth: "75%", backgroundColor: "#0c1a10", border: "3px solid #00ff88", padding: "10px 12px", fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#00ff88", lineHeight: 1.5 }}>
-              Something feels off. Inspect the message carefully before acting.
-            </div>
-          </div>
-        </div>
-        {activeFlag && <FlagTooltip flag={activeFlag} onClose={() => setActiveFlag(null)} />}
-      </div>
-      <div className="px-4 py-4 flex flex-col gap-3" style={{ borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a" }}>
-        <div className="flex gap-3">
-          <div style={{ flex: 1 }}>
-            <PixelBtn onClick={onReport} color="#00ff88" textColor="#0a0e1a" size="sm" full>REPORT + BLOCK</PixelBtn>
-          </div>
-          <div style={{ flex: 1 }}>
-            <PixelBtn onClick={onAskFamily} color="#ffe66d" textColor="#0a0e1a" size="sm" full>ASK FAMILY</PixelBtn>
-          </div>
-        </div>
-        <PixelBtn onClick={onTapLink} color="#ff2d55" textColor="#ffffff" size="sm" full>TAP LINK</PixelBtn>
-      </div>
-    </div>
-  );
-}
 
-function SMSBrowserScreen({ onClose, onSubmit }: { activeMemberId: string; onClose: () => void; onSubmit: () => void }) {
-  const [showUrlTip, setShowUrlTip] = useState(false);
-  const [glitch, setGlitch] = useState(false);
-
-  useEffect(() => {
-    const t = setInterval(() => { setGlitch(true); setTimeout(() => setGlitch(false), 80); }, 2500);
-    return () => clearInterval(t);
-  }, []);
-
-  return (
-    <div className="flex flex-col h-full">
-      <div style={{ backgroundColor: "#111827", borderBottom: "4px solid #ff2d55", padding: "10px 12px", flexShrink: 0 }}>
-        <div className="flex items-center gap-2 mb-1">
-          <div style={{ width: 8, height: 8, backgroundColor: "#ff2d55" }} />
-          <div style={{ width: 8, height: 8, backgroundColor: "#ffe66d" }} />
-          <div style={{ width: 8, height: 8, backgroundColor: "#00ff88" }} />
-        </div>
-        <button onClick={() => setShowUrlTip(!showUrlTip)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", background: "rgba(255,45,85,0.08)", border: "2px solid #ff2d55", padding: "6px 8px", cursor: "pointer" }}>
-          <IconWarning size={10} color="#ff2d55" />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ff6b35", flex: 1, textAlign: "left" }}>parcelgo-redeliver.example</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55" }}>UNSECURED</div>
-        </button>
-        {showUrlTip && (
-          <div style={{ backgroundColor: "rgba(255,45,85,0.12)", border: "2px solid #ff2d55", padding: "8px", marginTop: 6, fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#e8f4f8", lineHeight: 1.5 }}>
-            Check the URL carefully. Fake domains often look similar to real services.
-          </div>
-        )}
-      </div>
-      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", backgroundColor: "#111827" }}>
-        <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ textAlign: "center", filter: glitch ? "hue-rotate(180deg)" : "none", transition: "filter 0.05s" }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35", marginBottom: 6 }}>Redelivery Payment</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4" }}>Enter your details to reschedule your parcel.</div>
-          </div>
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            <div style={{ backgroundColor: "#1a2340", border: "2px solid #ff2d55", padding: "4px 12px", display: "flex", alignItems: "center", gap: 6 }}>
-              <IconWarning size={10} color="#ff2d55" />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55" }}>
-                <Blink ms={400}>SECURE VERIFIED</Blink>
-              </div>
-            </div>
-          </div>
-          {["Full Name", "Home Address", "Card Number", "CVV", "OTP Code"].map((label) => (
-            <div key={label}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", marginBottom: 4 }}>{label}</div>
-              <div style={{ backgroundColor: "#0a0e1a", border: "2px solid #2a3a5c", padding: "10px", height: 36, fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#1a2340" }}>▋</div>
-            </div>
-          ))}
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55", textAlign: "center" }}>
-            <Blink ms={800}>UNSECURED PAGE — DO NOT ENTER DETAILS</Blink>
-          </div>
-        </div>
-      </div>
-      <div className="flex gap-3 px-4 py-4" style={{ borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a" }}>
-        <div style={{ flex: 1 }}>
-          <PixelBtn onClick={onSubmit} color="#ff2d55" textColor="#ffffff" size="sm" full>SUBMIT PAYMENT</PixelBtn>
-        </div>
-        <div style={{ flex: 1 }}>
-          <PixelBtn onClick={onClose} color="#00ff88" textColor="#0a0e1a" size="sm" full>CLOSE PAGE</PixelBtn>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────
 // EMAIL SCREENS
 // ─────────────────────────────────────────────────────────────────────────
-const EMAIL_INBOX_ITEMS = [
-  { id: "campus", sender: "Campus Rewards Office", subject: "IMPORTANT: Claim Your $300 Digital Safety Reward", preview: "You have been selected for a limited-time cyber safety reward…", time: "NOW", isScam: true },
-  { id: "tips", sender: "Cyber Tips Weekly", subject: "How to spot fake links", preview: "This week's safety tip…", time: "3h" },
-  { id: "family", sender: "Family Group", subject: "Weekend lunch", preview: "Mum: Are we free this Sunday?", time: "5h" },
-  { id: "school", sender: "School Portal", subject: "Assignment reminder", preview: "Your submission is due soon.", time: "1d" },
-  { id: "game", sender: "Game Updates", subject: "New badge unlocked", preview: "You are close to your next rank.", time: "2d" },
-];
 
-function EmailInboxScreen({ onOpenScam, onBack }: { activeMemberId: string; onOpenScam: () => void; onBack: () => void }) {
-  const [toast, setToast] = useState("");
-  const [glowFrame, setGlowFrame] = useState(true);
 
-  useEffect(() => {
-    const t = setInterval(() => setGlowFrame((f) => !f), 900);
-    return () => clearInterval(t);
-  }, []);
 
-  const handleNonScam = () => {
-    setToast("This email is safe. Open the important email to continue.");
-    setTimeout(() => setToast(""), 2500);
-  };
 
-  return (
-    <div className="flex flex-col h-full" style={{ position: "relative" }}>
-      <div className="flex items-center justify-between px-4" style={{ backgroundColor: "#0a0e1a", borderBottom: "4px solid #2a3a5c", minHeight: 56, flexShrink: 0 }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>{"< BACK"}</div>
-        </button>
-        <div className="flex items-center gap-2">
-          <IconEnvelope size={16} color="#c77dff" />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#c77dff" }}>MAILBOX</div>
-        </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff6b35" }}>DRILL ACTIVE</div>
-      </div>
-      <div className="px-4 py-2" style={{ borderBottom: "2px solid #1a2340" }}>
-        <div style={{ backgroundColor: "#111827", border: "2px solid #2a3a5c", padding: "6px 10px", fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#2a3a5c" }}>
-          Search mail…
-        </div>
-      </div>
-      <div className="flex items-center gap-2 px-4 py-2" style={{ backgroundColor: "rgba(255,107,53,0.1)", borderBottom: "2px solid #ff6b35", flexShrink: 0 }}>
-        <IconWarning size={12} color="#ff6b35" />
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ff6b35" }}>
-          New important email detected. Inspect before clicking.
-        </div>
-      </div>
-      {toast && (
-        <div style={{ backgroundColor: "#1a2340", border: "2px solid #4ecdc4", padding: "8px 12px", margin: "8px 12px", position: "absolute", top: 160, left: 0, right: 0, zIndex: 20, animation: "slideUp 0.2s ease-out" }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#4ecdc4", lineHeight: 1.6 }}>{toast}</div>
-        </div>
-      )}
-      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
-        {EMAIL_INBOX_ITEMS.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => item.isScam ? onOpenScam() : handleNonScam()}
-            style={{
-              display: "block", width: "100%", textAlign: "left", background: "none",
-              border: "none", borderBottom: "2px solid #1a2340", cursor: "pointer",
-              padding: "12px 16px",
-              backgroundColor: item.isScam ? (glowFrame ? "rgba(255,107,53,0.08)" : "rgba(255,45,85,0.05)") : "#0a0e1a",
-              boxShadow: item.isScam ? `inset 0 0 ${glowFrame ? "16px" : "6px"} rgba(255,107,53,0.12)` : "none",
-              transition: "background-color 0.45s, box-shadow 0.45s",
-            }}
-          >
-            <div className="flex items-start gap-3">
-              <div style={{ width: 36, height: 36, backgroundColor: item.isScam ? "#ff6b35" : "#2a3a5c", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                {item.isScam ? <IconWarning size={18} color="#0a0e1a" /> : <IconEnvelope size={16} color="#6b8ba4" />}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="flex items-center justify-between mb-1">
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: item.isScam ? 6 : 5, color: item.isScam ? "#ff6b35" : "#e8f4f8" }}>{item.sender}</div>
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: item.isScam ? "#ff6b35" : "#6b8ba4" }}>{item.time}</div>
-                </div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: item.isScam ? "#ff2d55" : "#e8f4f8", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {item.subject}
-                </div>
-                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {item.preview}
-                </div>
-                {item.isScam && (
-                  <div className="flex gap-2 mt-1">
-                    <div style={{ backgroundColor: "#ff6b35", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#0a0e1a" }}>
-                      <Blink ms={500}>IMPORTANT</Blink>
-                    </div>
-                    <div style={{ backgroundColor: "#ff2d55", padding: "1px 5px", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ffffff" }}>UNREAD</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
-const EMAIL_BODY_LINES: { text: string; highlights?: Highlight[] }[] = [
-  { text: "Dear Student," },
-  { text: "" },
-  { text: "Congratulations! You have been selected to receive a $300 Digital Safety Reward for completing your campus cyber awareness profile.", highlights: [{ phrase: "$300 Digital Safety Reward", flagId: "email_reward" }] },
-  { text: "" },
-  { text: "This reward is only available for the next 30 minutes.", highlights: [{ phrase: "only available for the next 30 minutes", flagId: "email_urgency" }] },
-  { text: "" },
-  { text: "To claim your reward, verify your student account using the secure link below.", highlights: [{ phrase: "verify your student account", flagId: "email_verify" }] },
-  { text: "" },
-  { text: "[ CLAIM REWARD NOW ]", highlights: [{ phrase: "[ CLAIM REWARD NOW ]", flagId: "email_button" }] },
-  { text: "" },
-  { text: "If the button does not work, open the attached Reward_Verification_Form.zip and follow the instructions.", highlights: [{ phrase: "Reward_Verification_Form.zip", flagId: "email_attachment" }] },
-  { text: "" },
-  { text: "Failure to verify today may result in your reward being reassigned.", highlights: [{ phrase: "Failure to verify today", flagId: "email_threat" }] },
-  { text: "" },
-  { text: "Campus Rewards Office" },
-];
 
-function EmailDetailScreen({ onReport, onAskFamily, onClaimReward, onOpenAttachment, onBack }: { activeMemberId: string; onReport: () => void; onAskFamily: () => void; onClaimReward: () => void; onOpenAttachment: () => void; onBack: () => void }) {
-  const [activeFlag, setActiveFlag] = useState<DrillFlag | null>(null);
-  const [foundFlags, setFoundFlags] = useState<Set<string>>(new Set());
 
-  const handleFlagTap = (flagId: string) => {
-    const flag = FLAG_MAP[flagId];
-    if (!flag) return;
-    setFoundFlags((prev) => new Set([...prev, flagId]));
-    setActiveFlag(activeFlag?.id === flagId ? null : flag);
-  };
 
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center gap-2 px-4" style={{ backgroundColor: "#111827", borderBottom: "4px solid #2a3a5c", minHeight: 56, flexShrink: 0 }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#6b8ba4" }}>{"<"}</div>
-        </button>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#c77dff" }}>Campus Rewards Office</div>
-          <div className="flex items-center gap-1 mt-1">
-            <IconWarning size={8} color="#ff6b35" />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#ff6b35" }}>rewards-office@campus-secure.example</div>
-          </div>
-        </div>
-        <div style={{ backgroundColor: "#ff6b35", padding: "2px 6px", fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#0a0e1a", flexShrink: 0 }}>IMPORTANT</div>
-      </div>
-      <div className="px-4 py-3" style={{ borderBottom: "2px solid #1a2340", backgroundColor: "#0d1120" }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff2d55", lineHeight: 1.5, marginBottom: 6 }}>
-          IMPORTANT: Claim Your $300 Digital Safety Reward
-        </div>
-        <div className="flex items-center justify-between">
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4" }}>Tap red text to inspect</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: foundFlags.size > 0 ? "#ff6b35" : "#6b8ba4" }}>
-            RED FLAGS: {foundFlags.size}/6
-          </div>
-        </div>
-      </div>
-      <div style={{ flex: 1, position: "relative", overflow: "hidden" }} onClick={() => setActiveFlag(null)}>
-        <div style={{ height: "100%", overflowY: "auto", padding: "16px", scrollbarWidth: "none" }}>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#e8f4f8", lineHeight: 2 }}>
-            {EMAIL_BODY_LINES.map((line, i) => (
-              <div key={i} style={{ minHeight: line.text === "" ? 8 : "auto" }}>
-                {line.highlights?.length ? (
-                  <AnnotatedMessage text={line.text} highlights={line.highlights} onFlagTap={handleFlagTap} />
-                ) : (
-                  line.text
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-2 mt-4" style={{ backgroundColor: "#1a2340", border: "2px solid #c77dff", padding: "8px 10px", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); handleFlagTap("email_attachment"); }}>
-            <IconAttachment size={14} color="#c77dff" />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#c77dff" }}>Reward_Verification_Form.zip</div>
-            <IconWarning size={10} color="#ff2d55" />
-          </div>
-          <div style={{ height: 120 }} />
-        </div>
-        {activeFlag && <FlagTooltip flag={activeFlag} onClose={() => setActiveFlag(null)} />}
-      </div>
-      <div className="px-4 py-3 flex flex-col gap-2" style={{ borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a", flexShrink: 0 }}>
-        <div className="flex gap-2">
-          <div style={{ flex: 1 }}>
-            <PixelBtn onClick={onReport} color="#00ff88" textColor="#0a0e1a" size="sm" full>REPORT PHISHING</PixelBtn>
-          </div>
-          <div style={{ flex: 1 }}>
-            <PixelBtn onClick={onAskFamily} color="#ffe66d" textColor="#0a0e1a" size="sm" full>ASK FAMILY</PixelBtn>
-          </div>
-        </div>
-        <PixelBtn onClick={onClaimReward} color="#ff2d55" textColor="#ffffff" size="sm" full>CLAIM REWARD</PixelBtn>
-        <PixelBtn onClick={onOpenAttachment} color="#1a2340" textColor="#c77dff" size="sm" full>OPEN ATTACHMENT</PixelBtn>
-      </div>
-    </div>
-  );
-}
 
-function EmailBrowserScreen({ onClose, onSubmit }: { activeMemberId: string; onClose: () => void; onSubmit: () => void }) {
-  const [showUrlTip, setShowUrlTip] = useState(false);
-  const [showBreach, setShowBreach] = useState(false);
-  const [glitch, setGlitch] = useState(false);
-
-  useEffect(() => {
-    const t = setInterval(() => { setGlitch(true); setTimeout(() => setGlitch(false), 90); }, 3000);
-    return () => clearInterval(t);
-  }, []);
-
-  const handleSubmit = () => {
-    setShowBreach(true);
-    setTimeout(() => onSubmit(), 2200);
-  };
-
-  if (showBreach) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-6" style={{ backgroundColor: "#1a0000" }}>
-        <div style={{ filter: "drop-shadow(0 0 20px rgba(255,45,85,0.9))" }}>
-          <IconSkull size={80} color="#ff2d55" />
-        </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 14, color: "#ff2d55", textAlign: "center", lineHeight: 1.6, textShadow: "0 0 20px #ff2d55" }}>
-          DETAILS<br />CAPTURED
-        </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 14, color: "#ff6b35", textAlign: "center" }}>Redirecting to result...</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col h-full">
-      <div style={{ backgroundColor: "#111827", borderBottom: "4px solid #ff2d55", padding: "10px 12px", flexShrink: 0 }}>
-        <div className="flex items-center gap-2 mb-1">
-          <div style={{ width: 8, height: 8, backgroundColor: "#ff2d55" }} />
-          <div style={{ width: 8, height: 8, backgroundColor: "#ffe66d" }} />
-          <div style={{ width: 8, height: 8, backgroundColor: "#00ff88" }} />
-        </div>
-        <button onClick={() => setShowUrlTip(!showUrlTip)} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", backgroundColor: "rgba(255,45,85,0.08)", border: "2px solid #ff2d55", padding: "6px 8px", cursor: "pointer" }}>
-          <IconWarning size={10} color="#ff2d55" />
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ff6b35", flex: 1, textAlign: "left" }}>campus-secure-rewards.example</div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55" }}>UNVERIFIED SITE</div>
-        </button>
-        {showUrlTip && (
-          <div style={{ backgroundColor: "rgba(255,45,85,0.12)", border: "2px solid #ff2d55", padding: "8px", marginTop: 6, fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#e8f4f8", lineHeight: 1.5 }}>
-            The domain is suspicious. Scammers often use official-sounding fake domains.
-          </div>
-        )}
-      </div>
-      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", backgroundColor: "#111827" }}>
-        <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ textAlign: "center", filter: glitch ? "hue-rotate(200deg) brightness(1.2)" : "none", transition: "filter 0.05s" }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#c77dff", marginBottom: 6 }}>Digital Safety Reward Portal</div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4" }}>Verify your identity to receive $300.</div>
-          </div>
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            <div style={{ backgroundColor: "#1a2340", border: `2px solid ${glitch ? "#ff2d55" : "#2a3a5c"}`, padding: "4px 12px", display: "flex", alignItems: "center", gap: 6, transition: "border-color 0.05s" }}>
-              <IconShield size={12} color={glitch ? "#ff2d55" : "#2a3a5c"} />
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: glitch ? "#ff2d55" : "#2a3a5c" }}>SECURE VERIFIED</div>
-            </div>
-          </div>
-          {["Student Email", "Password", "NRIC / ID Number", "Phone Number", "OTP Code"].map((label) => (
-            <div key={label}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#6b8ba4", marginBottom: 4 }}>{label}</div>
-              <div style={{ backgroundColor: "#0a0e1a", border: "2px solid #2a3a5c", padding: "10px", height: 36, fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#1a2340" }}>▋</div>
-            </div>
-          ))}
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55", textAlign: "center" }}>
-            <Blink ms={700}>UNSECURED — DO NOT SUBMIT REAL DATA</Blink>
-          </div>
-        </div>
-      </div>
-      <div className="flex gap-3 px-4 py-4" style={{ borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a" }}>
-        <div style={{ flex: 1 }}>
-          <PixelBtn onClick={handleSubmit} color="#ff2d55" textColor="#ffffff" size="sm" full>SUBMIT DETAILS</PixelBtn>
-        </div>
-        <div style={{ flex: 1 }}>
-          <PixelBtn onClick={onClose} color="#00ff88" textColor="#0a0e1a" size="sm" full>CLOSE + REPORT</PixelBtn>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EmailDownloadScreen({ onCancel, onComplete }: { activeMemberId: string; onCancel: () => void; onComplete: () => void }) {
-  const [phase, setPhase] = useState<"downloading" | "opening" | "malware">("downloading");
-  const [progress, setProgress] = useState(0);
-  const doneRef = useRef(false);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setProgress((p) => { if (p >= 100) { clearInterval(interval); return 100; } return p + 1; });
-    }, 32);
-    const t1 = setTimeout(() => setPhase("opening"), 3500);
-    const t2 = setTimeout(() => setPhase("malware"), 5500);
-    const t3 = setTimeout(() => { doneRef.current = true; onComplete(); }, 7500);
-    return () => { clearInterval(interval); clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, []);
-
-  const handleCancel = () => { if (!doneRef.current) onCancel(); };
-
-  if (phase === "malware") {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-6 px-6" style={{ backgroundColor: "#1a0000" }}>
-        <div style={{ filter: "drop-shadow(0 0 20px rgba(255,45,85,0.9))" }}>
-          <IconSkull size={72} color="#ff2d55" />
-        </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ff2d55", textAlign: "center", lineHeight: 1.8, textShadow: "0 0 20px #ff2d55" }}>
-          MALWARE SIMULATION<br />DETECTED
-        </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ff6b35", textAlign: "center", lineHeight: 2 }}>
-          DEVICE COMPROMISED<br />PASSWORDS AT RISK
-        </div>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4" }}>Returning to result...</div>
-      </div>
-    );
-  }
-
-  return (
-      <div className="flex flex-col items-center justify-center flex-1 gap-8 px-6">
-        <div style={{ filter: "drop-shadow(0 0 8px rgba(199,125,255,0.6))" }}>
-          <IconDownload size={48} color="#c77dff" />
-        </div>
-        <div style={{ width: "100%", backgroundColor: "#111827", border: "3px solid #c77dff", padding: "16px" }}>
-          <div className="flex items-center gap-3 mb-4">
-            <IconAttachment size={20} color="#c77dff" />
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#c77dff" }}>Reward_Verification_Form.zip</div>
-          </div>
-          <div style={{ width: "100%", backgroundColor: "#0a0e1a", border: "2px solid #2a3a5c", height: 20, marginBottom: 8, position: "relative", overflow: "hidden" }}>
-            <div style={{ height: "100%", backgroundColor: phase === "opening" ? "#ff6b35" : "#c77dff", width: `${progress}%`, transition: "width 0.1s" }} />
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ffffff", mixBlendMode: "difference" }}>
-                {phase === "downloading" ? `${progress}%` : "100%"}
-              </div>
-            </div>
-          </div>
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: phase === "opening" ? "#ff6b35" : "#c77dff", textAlign: "center" }}>
-            {phase === "downloading" ? "DOWNLOADING..." : "OPENING FILE..."}
-          </div>
-        </div>
-        <PixelBtn onClick={handleCancel} color="#00ff88" textColor="#0a0e1a" size="md" full>CANCEL DOWNLOAD</PixelBtn>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 7, color: "#ff2d55", textAlign: "center", lineHeight: 2 }}>
-          <Blink ms={500}>WARNING — SIMULATED MALWARE DETECTED</Blink>
-        </div>
-      </div>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────
 // SCAM REASON SECTION
@@ -2154,8 +1312,8 @@ function ResultScreen({ win, drillType, smsOutcome, emailOutcome, callOutcome, p
         )}
         {showDetails && <ScamReasonSection flags={flags} />}
         <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 12 }}>
-          <PixelBtn onClick={onPlayAgain} color={win ? "#00ff88" : "#ff6b35"} size="lg" full>[ PLAY ANOTHER DRILL ]</PixelBtn>
-          <PixelBtn onClick={onGoHome} color="#1a2340" textColor="#6b8ba4" size="md" full>BACK TO HOME</PixelBtn>
+          <PixelButton onClick={onPlayAgain} color={win ? "#00ff88" : "#ff6b35"} size="lg" full>[ PLAY ANOTHER DRILL ]</PixelButton>
+          <PixelButton onClick={onGoHome} color="#1a2340" textColor="#6b8ba4" size="md" full>BACK TO HOME</PixelButton>
         </div>
       </div>
     </div>
@@ -2346,8 +1504,8 @@ function SpeechBubble({ step, index, total, onNext, onSkip, onBack, style, inner
             ))}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            {index > 0 && <PixelBtn onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm">BACK</PixelBtn>}
-            <PixelBtn onClick={onNext} color={step.accent} size="sm">{last ? "DONE" : "NEXT"}</PixelBtn>
+            {index > 0 && <PixelButton onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="sm">BACK</PixelButton>}
+            <PixelButton onClick={onNext} color={step.accent} size="sm">{last ? "DONE" : "NEXT"}</PixelButton>
           </div>
         </div>
       </div>
@@ -2533,20 +1691,20 @@ function RegisterScreen({ onDone, onBack }: { onDone: (name: string) => void; on
               <div>{label("YOUR NAME (REQUIRED)")}<input required maxLength={30} aria-required="true" style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="JUDGE" autoComplete="name" /></div>
               <div>{label("PHONE NUMBER")}<input style={inputStyle} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+6591234567" inputMode="tel" /></div>
               <div>{label("EMAIL (OPTIONAL — FOR EMAIL DRILLS)")}<input style={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" inputMode="email" autoCapitalize="none" /></div>
-              <PixelBtn onClick={sendCode} color="#4ecdc4" size="lg" full disabled={busy}>{busy ? "SENDING..." : "[ SEND CODE ]"}</PixelBtn>
-              <PixelBtn onClick={handleSave} color="#1a2340" textColor="#4ecdc4" size="sm" full disabled={busy}>[ SAVE DETAILS ]</PixelBtn>
+              <PixelButton onClick={sendCode} color="#4ecdc4" size="lg" full disabled={busy}>{busy ? "SENDING..." : "[ SEND CODE ]"}</PixelButton>
+              <PixelButton onClick={handleSave} color="#1a2340" textColor="#4ecdc4" size="sm" full disabled={busy}>[ SAVE DETAILS ]</PixelButton>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>{label(`CODE SENT TO ${phone}`)}<input style={{ ...inputStyle, letterSpacing: 8, textAlign: "center", fontSize: 22 }} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000000" inputMode="numeric" /></div>
               {devCode && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "#ffe66d", textAlign: "center" }}>DEV CODE: {devCode}</div>}
-              <PixelBtn onClick={verify} color="#00ff88" size="lg" full disabled={busy || code.length < 6}>{busy ? "CHECKING..." : "[ VERIFY ]"}</PixelBtn>
-              <PixelBtn onClick={() => { setStep("phone"); setMsg(""); }} color="#1a2340" textColor="#6b8ba4" size="sm" full>CHANGE NUMBER</PixelBtn>
+              <PixelButton onClick={verify} color="#00ff88" size="lg" full disabled={busy || code.length < 6}>{busy ? "CHECKING..." : "[ VERIFY ]"}</PixelButton>
+              <PixelButton onClick={() => { setStep("phone"); setMsg(""); }} color="#1a2340" textColor="#6b8ba4" size="sm" full>CHANGE NUMBER</PixelButton>
             </div>
           )}
           {msg && <div style={{ marginTop: 12, fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: msg.includes("VERIFIED") ? "#00ff88" : "#ff6b35", textAlign: "center" }}>{msg}</div>}
         </PixelPanel>
-        <PixelBtn onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="md" full>BACK</PixelBtn>
+        <PixelButton onClick={onBack} color="#1a2340" textColor="#6b8ba4" size="md" full>BACK</PixelButton>
       </div>
     </div>
   );
@@ -2566,13 +1724,7 @@ function RegisterScreen({ onDone, onBack }: { onDone: (name: string) => void; on
 // ─────────────────────────────────────────────────────────────────────────
 
 
-function ToggleSwitchB({ on, onToggle, color = "#00ff88" }: { on: boolean; onToggle: () => void; color?: string }) {
-  return (
-    <button onClick={onToggle} style={{ width: 44, height: 24, backgroundColor: on ? color : "#2a3a5c", border: "3px solid #0a0e1a", boxShadow: "3px 3px 0 #0a0e1a", cursor: "pointer", position: "relative", transition: "background-color 0.15s", flexShrink: 0 }}>
-      <div style={{ position: "absolute", top: 2, left: on ? 18 : 2, width: 16, height: 14, backgroundColor: on ? "#0a0e1a" : "#6b8ba4", transition: "left 0.15s" }} />
-    </button>
-  );
-}
+
 
 
 
@@ -2594,12 +1746,7 @@ function ToggleSwitchB({ on, onToggle, color = "#00ff88" }: { on: boolean; onTog
 // ─────────────────────────────────────────────────────────────────────────
 // ANIMATED FAMILY CHARACTER
 // ─────────────────────────────────────────────────────────────────────────
-function AnimatedFamilyChar({ name, size = 60 }: { name: string; size?: number }) {
-  const frame = useIdleFrame(2);
-  const idMap: Record<string, string> = { Grandma: "grandma", Mum: "mum", Dad: "dad", Kid: "kid" };
-  const id = idMap[name] ?? "mum";
-  return <FamilyChar id={id} size={size} frame={frame} />;
-}
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // SMS PHONE MOCK CARD
@@ -2696,9 +1843,9 @@ function FamilyDrillIntroScreen({ onStart, onBack }: { onStart: () => void; onBa
           </div>
         </div>
         <div className="flex flex-col gap-3">
-          <PixelBtn onClick={onStart} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ START FAMILY DRILL ]</PixelBtn>
-          <PixelBtn onClick={() => setShowHowTo(true)} color="#ffe66d" textColor="#0a0e1a" size="sm" full>[ HOW TO PLAY ]</PixelBtn>
-          <PixelBtn onClick={onBack} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>[ BACK HOME ]</PixelBtn>
+          <PixelButton onClick={onStart} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ START FAMILY DRILL ]</PixelButton>
+          <PixelButton onClick={() => setShowHowTo(true)} color="#ffe66d" textColor="#0a0e1a" size="sm" full>[ HOW TO PLAY ]</PixelButton>
+          <PixelButton onClick={onBack} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>[ BACK HOME ]</PixelButton>
         </div>
       </div>
       {showHowTo && (
@@ -2715,7 +1862,7 @@ function FamilyDrillIntroScreen({ onStart, onBack }: { onStart: () => void; onBa
                   <div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 8, color: "#ffe66d", marginBottom: 2 }}>{title}</div><div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#6b8ba4", lineHeight: 1.4 }}>{desc}</div></div>
                 </div>
               ))}
-              <PixelBtn onClick={() => setShowHowTo(false)} color="#4ecdc4" textColor="#0a0e1a" size="sm" full>GOT IT</PixelBtn>
+              <PixelButton onClick={() => setShowHowTo(false)} color="#4ecdc4" textColor="#0a0e1a" size="sm" full>GOT IT</PixelButton>
             </div>
           </div>
         </div>
@@ -2960,8 +2107,8 @@ function FamilyRoundScreen({ scenario, roundIndex, totalRounds, onComplete, onNe
         </div>
       ) : (
         <div style={{ display: "flex", gap: 12, padding: "12px", borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a", flexShrink: 0 }}>
-          <div style={{ flex: 1 }}><PixelBtn onClick={onNext} color="#00ff88" textColor="#0a0e1a" size="sm" full>NEXT MEMBER</PixelBtn></div>
-          <div style={{ flex: 1 }}><PixelBtn onClick={onEnd} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>END DRILL</PixelBtn></div>
+          <div style={{ flex: 1 }}><PixelButton onClick={onNext} color="#00ff88" textColor="#0a0e1a" size="sm" full>NEXT MEMBER</PixelButton></div>
+          <div style={{ flex: 1 }}><PixelButton onClick={onEnd} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>END DRILL</PixelButton></div>
         </div>
       )}
       {showSenderPanel && (
@@ -3058,9 +2205,9 @@ function FamilySummaryScreen({ answers, onPlayAgain, onIndividual, onHome }: {
           ))}
         </div>
         <div className="flex flex-col gap-3 pb-4">
-          <PixelBtn onClick={onPlayAgain} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ PLAY FAMILY DRILL AGAIN ]</PixelBtn>
-          <PixelBtn onClick={onIndividual} color="#4ecdc4" textColor="#0a0e1a" size="sm" full>[ TRY INDIVIDUAL DRILL ]</PixelBtn>
-          <PixelBtn onClick={onHome} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>[ BACK HOME ]</PixelBtn>
+          <PixelButton onClick={onPlayAgain} color="#00ff88" textColor="#0a0e1a" size="lg" full>[ PLAY FAMILY DRILL AGAIN ]</PixelButton>
+          <PixelButton onClick={onIndividual} color="#4ecdc4" textColor="#0a0e1a" size="sm" full>[ TRY INDIVIDUAL DRILL ]</PixelButton>
+          <PixelButton onClick={onHome} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>[ BACK HOME ]</PixelButton>
         </div>
       </div>
     </div>
@@ -3134,7 +2281,7 @@ function SettingsScreen({ profile, settings, muted, onToggleMute, onSettings, on
           {openAccordion === "reset" && (
             <div style={{ backgroundColor: "#0a0e1a", border: "3px solid #2a3a5c", borderTop: "none", padding: "14px 16px", animation: "slideUp 0.15s ease-out" }}>
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: "#ff2d55", marginBottom: 10, lineHeight: 1.5 }}>Removes this device's session and saved contact prefill. Your server account and XP are kept.</div>
-              <PixelBtn onClick={() => {
+              <PixelButton onClick={() => {
                 // Use the key constants, not literals — a renamed constant would otherwise
                 // leave a key uncleared and this "sign out" would silently not sign out.
                 try {
@@ -3144,7 +2291,7 @@ function SettingsScreen({ profile, settings, muted, onToggleMute, onSettings, on
                   localStorage.removeItem(TUTORIAL_KEY);
                 } catch { /* private mode: nothing to clear */ }
                 location.reload();
-              }} color="#ff2d55" textColor="#ffffff" size="sm" full>CONFIRM SIGN OUT</PixelBtn>
+              }} color="#ff2d55" textColor="#ffffff" size="sm" full>CONFIRM SIGN OUT</PixelButton>
             </div>
           )}
         </div>
@@ -3225,15 +2372,15 @@ function AccountSettingsScreen({ profile, onBack }: { profile: PlayerProfile; on
                 <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: "#ffe66d", lineHeight: 1.5, marginBottom: 2 }}>
                   REMOVE YOUR VERIFIED PHONE?
                 </div>
-                <PixelBtn onClick={detachPhone} color="#ff2d55" textColor="#ffffff" size="sm" full disabled={detaching}>
+                <PixelButton onClick={detachPhone} color="#ff2d55" textColor="#ffffff" size="sm" full disabled={detaching}>
                   {detaching ? "REMOVING..." : "YES, REMOVE NUMBER"}
-                </PixelBtn>
-                <PixelBtn onClick={() => setConfirmDetach(false)} color="#1a2340" textColor="#b4c6d4" size="sm" full disabled={detaching}>CANCEL</PixelBtn>
+                </PixelButton>
+                <PixelButton onClick={() => setConfirmDetach(false)} color="#1a2340" textColor="#b4c6d4" size="sm" full disabled={detaching}>CANCEL</PixelButton>
               </div>
             ) : (
-              <PixelBtn onClick={() => { setConfirmDetach(true); setDetachMessage(""); }} color="#ff2d55" textColor="#ffffff" size="sm" full>
+              <PixelButton onClick={() => { setConfirmDetach(true); setDetachMessage(""); }} color="#ff2d55" textColor="#ffffff" size="sm" full>
                 REMOVE VERIFIED NUMBER
-              </PixelBtn>
+              </PixelButton>
             )}
           </div>
         )}
@@ -3537,7 +2684,7 @@ function NotificationsScreen({
 
       {notifications.length > 0 && (
         <div style={{ padding: "10px 12px", borderTop: "4px solid #2a3a5c", backgroundColor: "#0a0e1a" }}>
-          <PixelBtn
+          <PixelButton
             onClick={onMarkAllRead}
             color={unreadCount > 0 ? "#ffe66d" : "#1a2340"}
             textColor={unreadCount > 0 ? "#0a0e1a" : "#6b8ba4"}
@@ -3546,7 +2693,7 @@ function NotificationsScreen({
             disabled={unreadCount === 0}
           >
             {unreadCount > 0 ? `MARK ALL READ (${unreadCount})` : "ALL CAUGHT UP"}
-          </PixelBtn>
+          </PixelButton>
         </div>
       )}
     </div>
@@ -3627,9 +2774,9 @@ function NotificationDetailScreen({
 
         {actionLabel && actionHandler && (
           <div style={{ marginTop: 20 }}>
-            <PixelBtn onClick={actionHandler} color={accent} textColor="#0a0e1a" size="md" full>
+            <PixelButton onClick={actionHandler} color={accent} textColor="#0a0e1a" size="md" full>
               [ {actionLabel} ]
-            </PixelBtn>
+            </PixelButton>
           </div>
         )}
       </div>
@@ -3734,7 +2881,7 @@ function PaydayScreen({ coins, claimedThisWeek, onCollect, onClose }: { coins: R
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: "#0a0e1a" }}>{claimedThisWeek ? "COLLECTED THIS WEEK" : "COLLECTED!"}</div>
             </div>
           ) : (
-            <PixelBtn onClick={handleCollect} color="#ffe66d" textColor="#0a0e1a" size="lg" full>[ COLLECT PAYDAY ]</PixelBtn>
+            <PixelButton onClick={handleCollect} color="#ffe66d" textColor="#0a0e1a" size="lg" full>[ COLLECT PAYDAY ]</PixelButton>
           )}
         </div>
       </div>
@@ -4924,9 +4071,9 @@ export default function App() {
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 14, color: "#e8f4f8", lineHeight: 1.6, marginBottom: 16 }}>
               {neutralResultNotice.message}
             </div>
-            <PixelBtn onClick={dismissNeutralResult} color="#4ecdc4" textColor="#0a0e1a" size="md" full>
+            <PixelButton onClick={dismissNeutralResult} color="#4ecdc4" textColor="#0a0e1a" size="md" full>
               [ GOT IT ]
-            </PixelBtn>
+            </PixelButton>
           </div>
         </div>
       )}

@@ -1,6 +1,6 @@
 import type { AvatarConfig } from "../../types/profile";
 import { PixelMascot } from "../../components/avatars";
-import { PixelBtn } from "../../components/ui";
+import { PixelButton } from "../../components/ui";
 import { SubPageHeader } from "../../components/layout";
 import { useState } from "react";
 
@@ -46,8 +46,8 @@ export function AvatarCustomisationScreen({ avatar, onSave, onBack }: {
           </div>
         ))}
         <div className="flex gap-3">
-          <div style={{ flex: 1 }}><PixelBtn onClick={save} color="#c77dff" textColor="#0a0e1a" size="sm" full>[ SAVE AVATAR ]</PixelBtn></div>
-          <div style={{ flex: 1 }}><PixelBtn onClick={onBack} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>[ CANCEL ]</PixelBtn></div>
+          <div style={{ flex: 1 }}><PixelButton onClick={save} color="#c77dff" textColor="#0a0e1a" size="sm" full>[ SAVE AVATAR ]</PixelButton></div>
+          <div style={{ flex: 1 }}><PixelButton onClick={onBack} color="#2a3a5c" textColor="#e8f4f8" size="sm" full>[ CANCEL ]</PixelButton></div>
         </div>
       </div>
     </div>

@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { FamilyMember } from "../../types/family";
 import { sessionToken } from "../../services/session";
 import { FAMILY_MEMBERS } from "../../data/familyMembers";
-import { PixelBtn } from "../../components/ui";
+import { PixelButton } from "../../components/ui";
 import { FamilySafetyBar } from "./FamilySafetyBar";
 import { HouseRoof } from "./HouseRoof";
 import { DollhouseRoom } from "./DollhouseRoom";
@@ -44,18 +44,18 @@ export function FamilyHomeScreen({ onDrillSelect, onFamilyDrill, onPayday, onCus
           <div aria-hidden="true" style={{ fontFamily: "var(--font-family-ui)", fontSize: "var(--font-ui-micro)", color: "#2a3a5c", letterSpacing: 3 }}>████████████████████████████</div>
         </div>
         <div style={{ padding: "16px 16px 8px", backgroundColor: "#0a0e1a" }}>
-          <div data-tour="start-drill"><PixelBtn onClick={onFamilyDrill} color="#00ff88" size="lg" full>[ START FAMILY DRILL ]</PixelBtn></div>
+          <div data-tour="start-drill"><PixelButton onClick={onFamilyDrill} color="#00ff88" size="lg" full>[ START FAMILY DRILL ]</PixelButton></div>
         </div>
         <div style={{ padding: "0 16px 20px", backgroundColor: "#0a0e1a" }}>
-          <PixelBtn onClick={onPayday} color="#ffe66d" textColor="#0a0e1a" size="md" full>PAYDAY SUNDAY</PixelBtn>
+          <PixelButton onClick={onPayday} color="#ffe66d" textColor="#0a0e1a" size="md" full>PAYDAY SUNDAY</PixelButton>
           <div style={{ height: 10 }} />
           <div data-tour="opt-in">{registered ? (
-            <PixelBtn onClick={onDrillSelect} color="#00ff88" textColor="#0a0e1a" size="md" full>[ ✓ OPTED IN — RUN A REAL DRILL ]</PixelBtn>
+            <PixelButton onClick={onDrillSelect} color="#00ff88" textColor="#0a0e1a" size="md" full>[ ✓ OPTED IN — RUN A REAL DRILL ]</PixelButton>
           ) : (
-            <PixelBtn onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="md" full>[ OPT IN TO REAL CALL DRILLS ]</PixelBtn>
+            <PixelButton onClick={onRegister} color="#4ecdc4" textColor="#0a0e1a" size="md" full>[ OPT IN TO REAL CALL DRILLS ]</PixelButton>
           )}</div>
           <div style={{ height: 10 }} />
-          <PixelBtn onClick={onTutorial} color="#1a2340" textColor="#6b8ba4" size="sm" full>HOW TO PLAY</PixelBtn>
+          <PixelButton onClick={onTutorial} color="#1a2340" textColor="#6b8ba4" size="sm" full>HOW TO PLAY</PixelButton>
         </div>
         <div style={{ padding: "0 16px 24px", backgroundColor: "#0a0e1a", fontFamily: "var(--font-family-ui)", fontSize: "var(--font-ui-caption)", color: "#6b8ba4", textAlign: "center", lineHeight: 1.5, }}>
           Train together. Protect the whole household.
